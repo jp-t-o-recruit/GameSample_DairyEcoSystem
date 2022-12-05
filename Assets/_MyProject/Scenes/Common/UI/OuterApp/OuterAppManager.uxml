@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/_MyProject/Scenes/OuterApp/OuterAppManager.uss?fileID=7433441132597879392&amp;guid=0a02ef9e14d096743977b3d4df94073d&amp;type=3#OuterAppManager" />
+    <ui:GroupBox name="OuterAppManager" class="outer-app-manager">
+        <CustomElement name="CustomElement" class="custom-base" />
+        <ui:Toggle label="Toggle" name="ColorToggle" value="true" />
+        <ui:Label text="DayInfo" display-tooltip-when-elided="true" name="DayInfo" class="day-info" style="border-left-color: rgb(245, 138, 57); border-right-color: rgb(245, 138, 57); border-top-color: rgb(245, 138, 57); border-bottom-color: rgb(245, 138, 57); border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;" />
+        <ui:GroupBox name="switchButtonWrap" class="switch-button-wrap">
+            <ui:Button text="reset" display-tooltip-when-elided="true" name="resetButton" class="reset-button" />
+            <ui:Button text="&lt;&lt; prev" display-tooltip-when-elided="true" name="prevButton" class="prev-button" />
+            <ui:Button text="next &gt;&gt;" display-tooltip-when-elided="true" name="nextButton" class="next-button" />
+        </ui:GroupBox>
+        <ui:Button text="サンプル2個目" display-tooltip-when-elided="true" name="button-name" class="sample-ui2-button" />
+    </ui:GroupBox>
+</ui:UXML>
