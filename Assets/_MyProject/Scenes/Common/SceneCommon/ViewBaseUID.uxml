@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/_MyProject/Scenes/Common/SceneCommon/CommonUID.uss?fileID=7433441132597879392&amp;guid=9faa6aa39b8069140b5af978494235a7&amp;type=3#CommonUID" />
+    <ui:GroupBox style="flex-direction: row;">
+        <ui:Button text="&lt;&lt; Back" display-tooltip-when-elided="true" name="backButton" class="back-button" />
+    </ui:GroupBox>
+    <ui:GroupBox>
+        <ui:Label text="this View Common" display-tooltip-when-elided="true" name="viewLabel" style="font-size: 24px;" />
+    </ui:GroupBox>
+</ui:UXML>

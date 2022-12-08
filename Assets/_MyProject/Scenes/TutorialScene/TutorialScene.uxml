@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/_MyProject/Scenes/TutorialScene/TutorialScene.uss?fileID=7433441132597879392&amp;guid=ffa168932bc9f004cbcc45293c0a94e2&amp;type=3#TutorialScene" />
+    <ui:GroupBox style="font-size: 24px; color: rgb(255, 255, 255);">
+        <ui:Button text="・・・" display-tooltip-when-elided="true" name="TutorialToolButton" style="width: 42px; height: 42px; position: absolute; right: 8px;" />
+        <ui:Label text="this view Tutorial Scene" display-tooltip-when-elided="true" style="color: rgb(255, 255, 255); font-size: 24px;" />
+        <ui:GroupBox name="skipGroup">
+            <ui:Label text="スキップしますか？" display-tooltip-when-elided="true" name="toolLabel" />
+            <ui:GroupBox style="flex-direction: row;">
+                <ui:Button text="cancel" display-tooltip-when-elided="true" name="cancelButton" />
+                <ui:Button text="Skip" display-tooltip-when-elided="true" name="skipButton" class="success-button" />
+            </ui:GroupBox>
+        </ui:GroupBox>
+    </ui:GroupBox>
+</ui:UXML>

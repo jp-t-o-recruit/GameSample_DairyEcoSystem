@@ -8,20 +8,27 @@ using UnityEngine.SceneManagement;
 using Logger = MyLogger.MapBy<ExSceneManager>;
 
 
+
+/// <summary>
+/// 
+/// 採用したシーン設計の基本構造
+/// https://gamebiz.jp/news/218949
+/// </summary>
+
 public interface ISceneTransition
 {
-    public abstract UniTask<Scene> LoadScene();
+    public abstract UniTask<List<Scene>> LoadScenes();
 }
 public abstract class SceneTransition<TParam>: ISceneTransition where TParam : new()
 {
     public string SceneName { get; protected set; }
     public TParam Parameter { get; set; }
-    public async UniTask<Scene> LoadScene()
+    public async virtual UniTask<List<Scene>> LoadScenes()
     {
         await SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
         Scene scene = SceneManager.GetSceneByName(SceneName);
-        AttachParameter(scene);
-        return scene;
+        GetSceneBaseFromScene(scene);
+        return new List<Scene> { scene };
     }
 
     /// <summary>
@@ -29,31 +36,52 @@ public abstract class SceneTransition<TParam>: ISceneTransition where TParam : n
     /// </summary>
     /// <param name="scene"></param>
     /// <returns></returns>
-    private SceneBase<TParam> AttachParameter(Scene scene)
+    protected SceneBase GetSceneBaseFromScene(Scene scene)
     {
-        SceneBase<TParam> sceneBase = null;
+        SceneBase sceneBase = null;
 
         // GetRootGameObjectsで、そのシーンのルートGameObjects
         // つまり、ヒエラルキーの最上位のオブジェクトが取得できる
         foreach (var gameObject in scene.GetRootGameObjects())
         {
-            sceneBase = gameObject.GetComponent<SceneBase<TParam>>();
+            sceneBase = gameObject.GetComponent<SceneBase>();
             if (sceneBase != null)
             {
-                sceneBase.CreateParam = Parameter ?? new TParam();
                 break;
             }
         }
+
         return sceneBase;
     }
 }
 
+
+public abstract class LayerdSceneTransition<TParam> : SceneTransition<TParam> where TParam : new()
+{
+    internal Dictionary<SceneLayer, System.Type> _layer;
+
+    public async override UniTask<List<Scene>> LoadScenes()
+    {
+        await SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
+        Scene scene = SceneManager.GetSceneByName(SceneName);
+
+        string UISceneName = _layer[SceneLayer.UI].ToString();
+        await SceneManager.LoadSceneAsync(UISceneName, LoadSceneMode.Additive);
+
+        Scene UIScene = SceneManager.GetSceneByName(UISceneName);
+        GetSceneBaseFromScene(UIScene);
+
+        return new List<Scene>() { scene, UIScene };
+    }
+}
 
 /// <summary>
 /// 自作シーンマネージャー
 /// </summary>
 public class ExSceneManager : SingletonBase<ExSceneManager>
 {
+    private Dictionary<SceneEnum, string> _typeToName;
+
     ///// <summary>
     ///// コンストラクタ
     ///// </summary>
@@ -63,17 +91,23 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         Logger.Debug("ExSceneManager コンストラクタ！");
 
         Scene scene = SceneManager.GetActiveScene();
-        Logger.Debug($"ExSceneManager シーン： {null != scene}, シーン数:{SceneManager.sceneCount }");
+        Logger.Debug($"ExSceneManager シーン： {null != scene}, シーン数:{SceneManager.sceneCount}");
     }
 
-    ///// <summary>
-    ///// マネージャーとして自身を作成
-    ///// </summary>
+    /////// <summary>
+    /////// マネージャーとして自身を作成
+    /////// </summary>
     //[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     //private static void CreateSelf()
     //{
     //    // ExSceneManagerという名前のGameObjectを作成し、ExSceneManagerというクラスをAddする
     //    new GameObject("ExSceneManager", typeof(ExSceneManager));
+    //    //// GameManagersシーンを常駐させる設計の場合
+    //    ////ManagerSceneが有効でないときに追加ロード
+    //    //if (!SceneManager.GetSceneByName(managerSceneName).IsValid())
+    //    //{
+    //    //    SceneManager.LoadScene(managerSceneName, LoadSceneMode.Additive);
+    //    //}
     //}
 
     // Start is called before the first frame update
@@ -96,13 +130,13 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
     async UniTask UnloadSceneAsync(string sceneName)
     {
         await SceneManager.UnloadSceneAsync(sceneName);
-        //UniTask.Delay(5000);
         await Resources.UnloadUnusedAssets().ToUniTask();
     }
 
     public async UniTask PushAsync(ISceneTransition transition)
     {
-        Scene scene = await transition.LoadScene();
+        var scenes = await transition.LoadScenes();
+        Scene scene = scenes.First();
         Logger.Debug("PushAsync ロード後");
         SceneManager.SetActiveScene(scene);
         Reflesh();
@@ -124,7 +158,7 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         // 現在のシーン名をすべて取得
         // スタック的クリアなので逆順で取得
         List<string> unloadScenes = new();
-        foreach(var index in Enumerable.Range(0, SceneManager.sceneCount).Reverse())
+        foreach (var index in Enumerable.Range(0, SceneManager.sceneCount).Reverse())
         {
             unloadScenes.Add(SceneManager.GetSceneAt(index).name);
         }
@@ -133,7 +167,8 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         await PushAsync(transition);
 
         // 以前のシーンをアンロード
-        foreach (var name in unloadScenes){
+        foreach (var name in unloadScenes)
+        {
             await UnloadSceneAsync(name);
         };
     }
@@ -179,21 +214,38 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         // TODO 更新をビューに反映
     }
 
-    private SceneBase<TParam> GetSceneBaseForLast<TParam>()
+    private SceneBase GetSceneBaseForLast()
     {
         Scene scene = SceneManager.GetActiveScene();
-        SceneBase<TParam> sceneBase = null;
+        SceneBase sceneBase = null;
 
         //GetRootGameObjectsで、そのシーンのルートGameObjects
         //つまり、ヒエラルキーの最上位のオブジェクトが取得できる
         foreach (var gameObject in scene.GetRootGameObjects())
         {
-            sceneBase = gameObject.GetComponent<SceneBase<TParam>>();
+            sceneBase = gameObject.GetComponent<SceneBase>();
             if (sceneBase != null)
             {
                 break;
             }
         }
         return sceneBase;
+    }
+
+
+
+
+    public void TODOChange()
+    {
+        _typeToName = new()
+        {
+            [SceneEnum.GameManagersScene] = "GameManagersScene",
+            [SceneEnum.TitleScene] = "TitleScene",
+            [SceneEnum.HomeScene] = "HomeScene",
+            [SceneEnum.TutorialScene] = "TutorialScene",
+        };
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            _typeToName[SceneEnum.TitleScene]
+        );
     }
 }

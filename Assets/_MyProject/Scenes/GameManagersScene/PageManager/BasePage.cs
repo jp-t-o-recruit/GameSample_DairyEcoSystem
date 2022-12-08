@@ -66,20 +66,6 @@ public class BasePageTransition<TPage> : IPageTransition where TPage : BasePage
     protected virtual void InitializePageParameter(LifetimeScope scope) { }
 }
 
-//public class BasePageTransition<TPage> : IPageTransition where TPage : BasePage
-//{
-//    public virtual async UniTask<BasePage> LoadPage()
-//    {
-//        var pageInstance = await DoPrefabLoad(pageAssetName);
-//        var pageLifetimeScope = pageInstance.GetComponent<LifetimeScope>();
-//        InitializePageParameter(pageLifetimeScope);
-//        pageLifetimeScope.Build(); // Page‘¤‚ÌˆË‘¶ŠÖŒW‰ðŒˆ
-//        var page = pageLifetimeScope.Container.Resolve<TPage>();
-//        return page;
-//    }
-//    protected virtual void InitializePageParameter(LifetimeScope container) { }
-//}
-
 public class LifetimeScopeWithParameter<TParam> : LifetimeScope
 {
     public TParam Param;

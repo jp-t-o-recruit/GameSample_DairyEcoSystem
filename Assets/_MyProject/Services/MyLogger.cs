@@ -70,7 +70,7 @@ public class MyLogger : SingletonBase<MyLogger>
             {
                 _LoggingDic = new Dictionary<Type, bool>();
                 // TODO シングルトン実装確認用のログ出力
-                Debug.Log("MyLogger2 生成 _isLogging" + typeof(Type).Name);
+                Debug.Log("MyLogger 生成 _isLogging" + typeof(Type).Name);
             }
             return _LoggingDic;
         }
@@ -102,7 +102,7 @@ public class MyLogger : SingletonBase<MyLogger>
         /// <returns></returns>
         public static bool GetEnableLogging()
         {
-            bool isLogging = Instance.LoggingDic.GetValueOrDefault(typeof(TType), false);
+            bool isLogging = Instance.LoggingDic.GetValueOrDefault(typeof(TType), true);
             return isLogging;
         }
 
@@ -130,7 +130,7 @@ public class MyLogger : SingletonBase<MyLogger>
     public MyLogger()
     {
         // TODO シングルトン実装確認用のログ出力
-        Debug.Log("コンストラクタ MyLogger");
+        Debug.Log("MyLogger コンストラクタ ");
 
         Logger = Debug.unityLogger;
     }

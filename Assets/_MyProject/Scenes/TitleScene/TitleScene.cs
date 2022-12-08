@@ -1,58 +1,106 @@
 using Cysharp.Threading.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using VContainer;
+using VContainer.Unity;
 
 using LocalLogger = MyLogger.MapBy<TitleScene>;
 
+/// <summary>
+/// タイトルシーンの内ロジックレイヤーシーン
+/// 
+/// クラス名はシーンオブジェクトと同一名にする
+/// </summary>
 [PageAsset("TitleScenePage.prefab")]
-public class TitleScene : SceneBase<TitleScene.CreateParameter>
+public class TitleScene : MonoBehaviour
 {
-    public class CreateParameter
-    {
-        string userId;
-    }
+    TitleSceneDomain _domain;
 
-    Button _nextSceneButton;
-    Label _viewLabel;
+    [Inject]
+    public TitleScene(TitleSceneDomain domain)
+    {
+        _domain = domain;
+        //_domain = DomainManager.GetDomain<TitleSceneDomain, TitleSceneDomain.DomainParam>();
+    }
 
     void Start()
     {
-        _nextSceneButton = RootElement.Q<Button>("nextSceneButton");
-        _viewLabel = RootElement.Q<Label>("titleSceneLabel");
-
-        _nextSceneButton.clickable.clicked += OnButtonClicked;
-        _viewLabel.text = "TitleSceneスクリプトから設定！";
     }
 
     void Update()
     {
-
     }
 
     private void OnDestroy()
     {
-        _nextSceneButton.clickable.clicked -= OnButtonClicked;
         LocalLogger.UnloadEnableLogging();
     }
 
-    async void OnButtonClicked()
-    {
-        _viewLabel.text = "TitleSceneでボタン押した！";
-        _nextSceneButton.pickingMode = PickingMode.Ignore;
-        LocalLogger.SetEnableLogging(false);
-        LocalLogger.Debug("タイトルでボタン押下");
+    //async void OnButtonClicked()
+    //{
+    //    // TODO イベントハンドリングでドメイン呼び出すか
+    //    // そもそもドメイン自体がハンドリングするか
+    //    //var domain = new TitleSceneDomain();
+    //    //await domain.Login();
+    //}
+}
 
-        var param = new HomeScene.CreateParameter() { ViewLabel = "home をタイトルが指定" };
-        var transition = new HomeSceneTransition() { Parameter = param };
-        await ExSceneManager.Instance.Replace(transition);
+public class TitleSceneTransition : LayerdSceneTransition<TitleUIScene.CreateParameter>
+{
+    public TitleSceneTransition()
+    {
+        _layer = new Dictionary<SceneLayer, System.Type>()
+        {
+            { SceneLayer.Logic, typeof(TitleScene) },
+            { SceneLayer.UI, typeof(TitleUIScene) },
+            //{ SceneLayer.Field, typeof(TitleFieldScene) },
+        };
+        SceneName = _layer[SceneLayer.Logic].ToString();
     }
 }
 
 
-public class TitleSceneTransition : SceneTransition<TitleScene.CreateParameter>
+public interface ITitleModel
 {
-    public TitleSceneTransition()
+    public string GetRandomText();
+}
+public class TitleModel: ITitleModel
+{
+
+    public string GetRandomText()
     {
-        SceneName = "TitleScene";
+        return "123";
+    }
+}
+
+public class TitleModelMock : ITitleModel
+{
+    public string GetRandomText()
+        => "Test";
+}
+
+// Presenterクラス
+public class TitleScenePresenter : IStartable
+{
+    // TODO シーン変更でOnDestroy（Disposable）されるのか？
+    private readonly TitleView _view;
+    private readonly ITitleModel _model;
+
+    [Inject]
+    public TitleScenePresenter(TitleView view, ITitleModel model)
+    {
+        _view = view;
+        _model = model;
+    }
+
+    public void Start()
+    {
+        // MonoBehaviorのStartメソッドが呼ばれるタイミングで実行される(IStartableのおかげ)
+        var text = _model.GetRandomText();
+        _view.DrawText(text);
     }
 }

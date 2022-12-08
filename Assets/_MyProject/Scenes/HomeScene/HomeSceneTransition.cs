@@ -1,51 +1,25 @@
 using Cysharp.Threading.Tasks;
+using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 
-public class HomeSceneTransition : SceneTransition<HomeScene.CreateParameter>
+public class HomeSceneTransition : LayerdSceneTransition<HomeUIScene.CreateParameter>
 {
     public HomeSceneTransition()
     {
-        SceneName = "HomeScene";
+        _layer = new Dictionary<SceneLayer, System.Type>()
+        {
+            { SceneLayer.Logic, typeof(HomeScene) },
+            { SceneLayer.UI, typeof(HomeUIScene) },
+            { SceneLayer.Field, typeof(HomeFieldScene) },
+        };
+        SceneName = _layer[SceneLayer.Logic].ToString();
     }
 }
 
 //[PageAsset("HomeScenePage.prefab")]
 //public class HomeScenePage : BasePage<HomeScenePage.CreateParameter>
-//{
-//    [SerializeField] private UIDocument _uiDocument;
-//    Button _nextSceneButton;
-//    Label _viewLabel;
-
-//    public class CreateParameter
-//    {
-//        public string viewStr;
-//    }
-//    public class Transition : BasePageTransition<HomeScenePage, CreateParameter> {
-
-//    }
-
-//    void Start()
-//    {
-//        var rootElement = _uiDocument.rootVisualElement;
-//        _nextSceneButton = rootElement.Q<Button>("nextSceneButton");
-//        _viewLabel = rootElement.Q<Label>("homeSceneLabel");
-
-//        //_nextSceneButton.clickable.clicked += OnButtonClicked;
-//        _viewLabel.text = Parameter.viewStr ?? "HomeSceneスクリプトから設定！";
-//    }
-
-//    // Update is called once per frame
-//    void Update()
-//    {
-
-//    }
-
-//    private void OnDestroy()
-//    {
-//        //_nextSceneButton.clickable.clicked -= OnButtonClicked;
-//    }
 
 //    //async void OnButtonClicked()
 //    //{

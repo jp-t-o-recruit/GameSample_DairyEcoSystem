@@ -1,0 +1,4 @@
+.success-button {
+    font-size: 24px;
+    background-color: rgba(93, 124, 178, 255);
+}
