@@ -1,37 +1,59 @@
 using Cysharp.Threading.Tasks;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
-using UnityEngine.UIElements;
 using VContainer;
 using Logger = MyLogger.MapBy<TitleSceneDomain>;
 
-public class TitleSceneDomain : DomainBase<TitleSceneDomain.DomainParam>
+/// <summary>
+/// タイトルシーン構成管理
+/// </summary>
+public class TitleSceneDomain : DomainBase
 {
     public class DomainParam : IDomainBaseParam
     {
         public string ViewLabel = "TitleSceneDomainスクリプトから設定！";
     }
 
-    public override DomainParam CreateParam()
-    {
-        return new DomainParam();
-    }
+    DomainParam Param;
 
     // IDisposableと引っ掛けて、Client自体がDisposeされたら実行中のリクエストも終了させるようにする
-    readonly CancellationTokenSource _clientLifetimeTokenSource;
+    private CancellationTokenSource _clientLifetimeTokenSource;
 
+    Dictionary<SceneLayer, ILayeredScene> _layerDef;
+
+    //[Inject]
+    //public void Construct(CancellationTokenSource clientLifetimeTokenSource)
+    //{
+    //    _clientLifetimeTokenSource = clientLifetimeTokenSource;
+    //    //Param = domainParam;
+    //    Param = new DomainParam();
+    //}
+    [Inject]
+    //public TitleSceneDomain(CancellationTokenSource clientLifetimeTokenSource,
+    //                        DomainParam domainParam)
+    public TitleSceneDomain()
+    {
+        CancellationTokenSource clientLifetimeTokenSource = new();
+        _clientLifetimeTokenSource = clientLifetimeTokenSource;
+        //Param = domainParam;
+        Param = new DomainParam();
+    }
     public void Dispose()
     {
         _clientLifetimeTokenSource?.Cancel();
         _clientLifetimeTokenSource?.Dispose();
+        Logger.SetEnableLogging(false);
     }
 
-    [Inject]
-    public TitleSceneDomain(CancellationTokenSource clientLifetimeTokenSource,
-                            DomainParam domainBaseParam)
+    public async UniTask TryStart()
     {
-        _clientLifetimeTokenSource = clientLifetimeTokenSource;
-        Param = domainBaseParam;
+        //var layerList = Enum.GetValues(typeof(SceneLayer)).Cast<SceneLayer>().ToList();
+        //var nonLoaded = layerList.Where(v => !_layerDef.ContainsKey(v));
+
+        var trantision = new TitleSceneTransition();
+        await ExSceneManager.Instance.PushOrRetry(trantision);
     }
 
     public async UniTask Login()
@@ -68,6 +90,15 @@ public class TitleSceneDomain : DomainBase<TitleSceneDomain.DomainParam>
         var userAccountServiceDomain = UserAccountDomainManager.GetService();
         var param = new HomeUIScene.CreateParameter() { ViewLabel = $"ユーザー名:{userAccountServiceDomain.User.userName}" };
         var transition = new HomeSceneTransition() { Parameter = param };
+
+        // TODO 設計変更中なのでシーンチェンジは呼べない
         await ExSceneManager.Instance.Replace(transition);
+    }
+
+    internal void SetLayerScene(ILayeredScene scene)
+    {
+        _layerDef ??= new Dictionary<SceneLayer, ILayeredScene>();
+        var layer = ExSceneManager.Instance.GetLayer(scene);
+        _layerDef.Add(layer, scene);
     }
 }

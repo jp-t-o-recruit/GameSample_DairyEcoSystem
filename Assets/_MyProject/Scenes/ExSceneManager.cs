@@ -18,17 +18,57 @@ using Logger = MyLogger.MapBy<ExSceneManager>;
 public interface ISceneTransition
 {
     public abstract UniTask<List<Scene>> LoadScenes();
+    public abstract UniTask UnLoadScenes();
 }
-public abstract class SceneTransition<TParam>: ISceneTransition where TParam : new()
+
+public abstract class LayerdSceneTransition<TParam> : ISceneTransition where TParam : new()
 {
-    public string SceneName { get; protected set; }
     public TParam Parameter { get; set; }
+    internal Dictionary<SceneLayer, System.Type> _layer;
+
+    /// <summary>
+    /// このシーンまとまりが複数回ロードされても良いか
+    /// 
+    /// TODO 複数回ロードを許したら実体シーンを取得や参照するのがかなり難しくなる
+    /// </summary>
+    //public bool CanMultipleLoad = false;
+
     public async virtual UniTask<List<Scene>> LoadScenes()
     {
-        await SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
-        Scene scene = SceneManager.GetSceneByName(SceneName);
-        GetSceneBaseFromScene(scene);
-        return new List<Scene> { scene };
+        List<Scene> scenes = new();
+        string logicSceneName = _layer[SceneLayer.Logic].ToString();
+        Scene scene = await LoadSceneByName(logicSceneName);
+        scenes.Add(scene);
+
+        string UISceneName = _layer[SceneLayer.UI].ToString();
+        Scene UIScene = await LoadSceneByName(UISceneName);
+        scenes.Add(UIScene);
+
+        return scenes;
+    }
+    protected async UniTask<Scene> LoadSceneByName(string sceneName)
+    {
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (null == scene)
+        {
+            await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            scene = SceneManager.GetSceneByName(sceneName);
+        }
+        return scene;
+    }
+
+    public async virtual UniTask UnLoadScenes()
+    {
+        foreach(System.Type types in _layer.Values)
+        {
+            await UnLoadSceneByName(types.ToString());
+        }
+    }
+
+    public async UniTask UnLoadSceneByName(string sceneName)
+    {
+        await SceneManager.UnloadSceneAsync(sceneName);
+        await Resources.UnloadUnusedAssets().ToUniTask();
     }
 
     /// <summary>
@@ -55,38 +95,47 @@ public abstract class SceneTransition<TParam>: ISceneTransition where TParam : n
     }
 }
 
-
-public abstract class LayerdSceneTransition<TParam> : SceneTransition<TParam> where TParam : new()
+/// <summary>
+/// 階層構造を持たないシーン（ただしLogic層として判定する）
+/// </summary>
+/// <typeparam name="TParam"></typeparam>
+public abstract class SoloLayerSceneTransition<TParam> : LayerdSceneTransition<TParam> where TParam : new()
 {
-    internal Dictionary<SceneLayer, System.Type> _layer;
-
     public async override UniTask<List<Scene>> LoadScenes()
     {
-        await SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
-        Scene scene = SceneManager.GetSceneByName(SceneName);
-
-        string UISceneName = _layer[SceneLayer.UI].ToString();
-        await SceneManager.LoadSceneAsync(UISceneName, LoadSceneMode.Additive);
-
-        Scene UIScene = SceneManager.GetSceneByName(UISceneName);
-        GetSceneBaseFromScene(UIScene);
-
-        return new List<Scene>() { scene, UIScene };
+        List<Scene> scenes = new();
+        string logicSceneName = _layer[SceneLayer.Logic].ToString();
+        Scene scene = await LoadSceneByName(logicSceneName);
+        scenes.Add(scene);
+        return scenes;
     }
 }
 
+
 /// <summary>
 /// 自作シーンマネージャー
+/// 
+/// ■機能
+/// ・シーン構成を担保
+/// 　┗GameManagerScene（常駐）
+/// 　　　┣HogeScene
+/// 　　　┣HogeUIScene
+/// 　　　┗HogeFieldScene
+/// ・Run時のコンポーネント設定を調整（AudioListenerの重複とか）
+/// 　┗調整の実作業はストラテジーパターンで別入れ出来るように
 /// </summary>
 public class ExSceneManager : SingletonBase<ExSceneManager>
 {
     private Dictionary<SceneEnum, string> _typeToName;
+
+    private Stack<ISceneTransition> _transitions;
 
     ///// <summary>
     ///// コンストラクタ
     ///// </summary>
     public ExSceneManager()
     {
+        _transitions = new Stack<ISceneTransition>();
         Logger.SetEnableLogging(false);
         Logger.Debug("ExSceneManager コンストラクタ！");
 
@@ -127,14 +176,40 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
     //    SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
     //}
 
-    async UniTask UnloadSceneAsync(string sceneName)
+    async UniTask UnloadSceneAsync(ISceneTransition transition)
     {
-        await SceneManager.UnloadSceneAsync(sceneName);
-        await Resources.UnloadUnusedAssets().ToUniTask();
+        await transition.UnLoadScenes();
+    }
+    public async UniTask PushOrRetry(ISceneTransition transition)
+    {
+        // TODO 動作確認中ログ
+        Logger.SetEnableLogging(true);
+        Logger.Debug("Retry:--------------------------------------");
+        Logger.Debug("Retry Count:" + _transitions.Count);
+        Logger.Debug("Retry transition:" + transition.GetType());
+        if (_transitions.Count > 0)
+        {
+            Logger.Debug("Retry Last______:" + _transitions.Last().GetType());
+            Logger.Debug("Retry bool______:" + (_transitions.Last().GetType() == transition.GetType()));
+        }
+
+        if (_transitions.Count > 0 && _transitions.Last().GetType() == transition.GetType())
+        {
+            var scenes = await transition.LoadScenes();
+            Scene scene = scenes.First();
+            Logger.Debug("Retry ロード後 トップシーン:" + scene.name);
+            SceneManager.SetActiveScene(scene);
+            Reflesh();
+        }
+        else
+        {
+            await PushAsync(transition);
+        }
     }
 
     public async UniTask PushAsync(ISceneTransition transition)
     {
+        _transitions.Push(transition);
         var scenes = await transition.LoadScenes();
         Scene scene = scenes.First();
         Logger.Debug("PushAsync ロード後");
@@ -144,33 +219,28 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
 
     internal async UniTask Replace(ISceneTransition transition)
     {
-        var removeScene = SceneManager.GetActiveScene();
+        var removeTransition = _transitions.Pop();
+        // TODO 実シーン取得してないけど大まかな技術的にはスタックで通用するはず
+        //var removeScene = SceneManager.GetActiveScene();
+
         Logger.Debug("Replace スタック抜き");
         // 新たなシーンをアクティブにする
         await PushAsync(transition);
         Logger.Debug("Replace アンロード前");
         // アクティブなシーンがある状態で以前のシーンアンロード
-        await UnloadSceneAsync(removeScene.name);
+        await UnloadSceneAsync(removeTransition);
     }
 
     internal async UniTask ReplaceAll(ISceneTransition transition)
     {
-        // 現在のシーン名をすべて取得
-        // スタック的クリアなので逆順で取得
-        List<string> unloadScenes = new();
-        foreach (var index in Enumerable.Range(0, SceneManager.sceneCount).Reverse())
+        // TODO GameManagerSceneは常設ならスタックとは別にして数えなくても？・・・
+        while (_transitions.Count > 1)
         {
-            unloadScenes.Add(SceneManager.GetSceneAt(index).name);
+            var unloadTransition = _transitions.Pop();
+            await UnloadSceneAsync(unloadTransition);
         }
 
-        // 先に追加してから
         await PushAsync(transition);
-
-        // 以前のシーンをアンロード
-        foreach (var name in unloadScenes)
-        {
-            await UnloadSceneAsync(name);
-        };
     }
 
     /// <summary>
@@ -193,18 +263,17 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
 
     private async UniTask<bool> PageTopDelete()
     {
-        //if (EditorSceneManager.loadedSceneCount > 1)
-        // TODO　Unityバージョン2021.3まではロード済みの数
-        // 2022.2からはロード中やアンロード中を含む
-        if (SceneManager.sceneCount > 1)
+        // TODO GameManagerSceneは常設ならスタックとは別にして数えなくても？・・・
+        if (_transitions.Count > 1)
         {
             return false;
         }
 
         // スタック最後を削除
-        Scene scene = SceneManager.GetActiveScene();
-        string sceneName = scene.name;
-        await UnloadSceneAsync(sceneName);
+        var deleteTransition = _transitions.Pop();
+        // TODO　シーン実体を参照したほうが正確ではある
+        //Scene scene = SceneManager.GetActiveScene();
+        await UnloadSceneAsync(deleteTransition);
 
         return true;
     }
@@ -232,8 +301,14 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         return sceneBase;
     }
 
+    public SceneLayer GetLayer(ILayeredScene layered)
+    {
+        if (layered is ILayeredSceneLogic) return SceneLayer.Logic;
+        if (layered is ILayeredSceneUI) return SceneLayer.UI;
+        if (layered is ILayeredSceneField) return SceneLayer.Field;
 
-
+        throw new NotImplementedException($"{layered.GetType()}は不明なシーン階層です");
+    }
 
     public void TODOChange()
     {
@@ -243,6 +318,7 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
             [SceneEnum.TitleScene] = "TitleScene",
             [SceneEnum.HomeScene] = "HomeScene",
             [SceneEnum.TutorialScene] = "TutorialScene",
+            [SceneEnum.CreditNotationScene] = "CreditNotationScene",
         };
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             _typeToName[SceneEnum.TitleScene]

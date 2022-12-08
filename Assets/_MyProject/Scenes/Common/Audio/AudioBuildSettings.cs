@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEditor.VersionControl;
 using UnityEditor;
 using UnityEngine;
-using static Unity.VisualScripting.Member;
 
 
 /// <summary>
@@ -25,7 +24,8 @@ public class AudioBuildSettings
     }
 
     //Audio Clipのパラメーター設定を自動化 
-    //Post Processorを使う 
+    //TODO
+    // Asset Post Processorを使う 
         
     public void OnPostprocessAudio(AudioClip AudioClip)
     {

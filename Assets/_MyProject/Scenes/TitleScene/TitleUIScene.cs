@@ -13,7 +13,7 @@ using LocalLogger = MyLogger.MapBy<TitleUIScene>;
 /// 参考UIシーン構成
 /// https://engineering.enish.jp/?p=1115
 /// </summary>
-public class TitleUIScene : SceneBase
+public class TitleUIScene : SceneBase, ILayeredSceneUI
 {
     public class CreateParameter
     {
@@ -26,9 +26,10 @@ public class TitleUIScene : SceneBase
     TitleSceneDomain _domain;
 
     [Inject]
-    public TitleUIScene(TitleSceneDomain domain)
+    public void Construct(TitleSceneDomain domain)
     {
         _domain = domain;
+        _domain.SetLayerScene(this);
     }
 
     void Awake()

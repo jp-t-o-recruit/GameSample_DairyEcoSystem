@@ -8,33 +8,12 @@ using UnityEngine;
 /// <summary>
 /// 特に機能を持たないが型判別のためのインターフェース
 /// </summary>
-public interface IDomain<TParam> where TParam : new()
-{
-    public TParam Param { get; set; }
-    public TParam InitialParam { get; set; }
-    public TParam CreateParam();
-}
-
-/// <summary>
-/// 特に機能を持たないが型判別のためのインターフェース
-/// </summary>
-public interface IDomain2
-{
-    public IDomainBaseParam Param { get; set; }
-    public IDomainBaseParam InitialParam { get; set; }
-    public IDomainBaseParam CreateParam();
-}
-
-public abstract class DomainBase2 : IDomain2
-{
-    public virtual IDomainBaseParam Param { get; set; }
-    public virtual IDomainBaseParam InitialParam { get; set; }
-
-    public virtual IDomainBaseParam CreateParam()
-    {
-        throw new NotImplementedException();
-    }
-}
+//public interface IDomain<TParam> where TParam : new()
+//{
+//    public TParam Param { get; set; }
+//    public TParam InitialParam { get; set; }
+//    public TParam CreateParam();
+//}
 
 /// <summary>
 /// 特に機能を持たないが型判別のためのインターフェース
@@ -48,12 +27,15 @@ public interface IDomainBaseParam
 
 //}
 
-public abstract class DomainBase<TParam> : IDomain<TParam> where TParam: new()
+//public abstract class DomainBase<TParam> : IDomain<TParam> where TParam: new()
+//{
+//    public TParam Param { get; set; }
+//    public TParam InitialParam { get; set; }
+//    public abstract TParam CreateParam();
+//}
+public abstract class DomainBase
 {
-    public TParam Param { get; set; }
-    public TParam InitialParam { get; set; }
 
-    public abstract TParam CreateParam();
 }
 
 /// <summary>
@@ -78,12 +60,19 @@ public class DomainManager
     //private static Dictionary<Type, object>  _d12omains;
     private static Dictionary<Type, object> _d12omains;
 
-    public static TDomain GetDomain<TDomain, TParam>()
-        where TDomain : DomainBase<TParam>, new()
-        where TParam : new()
+    //public static TDomain GetDomain<TDomain, TParam>()
+    //    where TDomain : DomainBase<TParam>, new()
+    //    where TParam : new()
+    //{
+    //    TDomain domain = new();
+    //    domain.Param = domain.CreateParam();
+    //    return domain;
+    //}
+
+    public static TDomain GetDomain<TDomain>()
+        where TDomain : DomainBase, new()
     {
         TDomain domain = new();
-        domain.Param = domain.CreateParam();
         return domain;
     }
 }

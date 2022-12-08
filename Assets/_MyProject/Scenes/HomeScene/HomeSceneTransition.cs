@@ -14,7 +14,6 @@ public class HomeSceneTransition : LayerdSceneTransition<HomeUIScene.CreateParam
             { SceneLayer.UI, typeof(HomeUIScene) },
             { SceneLayer.Field, typeof(HomeFieldScene) },
         };
-        SceneName = _layer[SceneLayer.Logic].ToString();
     }
 }
 

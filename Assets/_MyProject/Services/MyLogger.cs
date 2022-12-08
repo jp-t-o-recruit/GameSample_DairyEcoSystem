@@ -112,7 +112,15 @@ public class MyLogger : SingletonBase<MyLogger>
         /// <param name="enable"></param>
         public static void SetEnableLogging(bool enable)
         {
-            Instance.LoggingDic.TryAdd(typeof(TType), enable);
+            var types = typeof(TType);
+            if (Instance.LoggingDic.ContainsKey(types))
+            {
+                Instance.LoggingDic[types] = enable;
+            }
+            else
+            {
+                Instance.LoggingDic.Add(types, enable);
+            }
         }
 
         /// <summary>

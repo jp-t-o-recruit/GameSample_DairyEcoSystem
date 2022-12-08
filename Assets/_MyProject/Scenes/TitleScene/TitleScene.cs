@@ -3,12 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 using VContainer;
 using VContainer.Unity;
 
-using LocalLogger = MyLogger.MapBy<TitleScene>;
+using Logger = MyLogger.MapBy<TitleScene>;
 
 /// <summary>
 /// タイトルシーンの内ロジックレイヤーシーン
@@ -16,19 +14,38 @@ using LocalLogger = MyLogger.MapBy<TitleScene>;
 /// クラス名はシーンオブジェクトと同一名にする
 /// </summary>
 [PageAsset("TitleScenePage.prefab")]
-public class TitleScene : MonoBehaviour
+public class TitleScene : MonoBehaviour, ILayeredSceneLogic
 {
     TitleSceneDomain _domain;
 
     [Inject]
-    public TitleScene(TitleSceneDomain domain)
+    public void Construct(TitleSceneDomain domain)
     {
         _domain = domain;
-        //_domain = DomainManager.GetDomain<TitleSceneDomain, TitleSceneDomain.DomainParam>();
+        Logger.SetEnableLogging(true);
+        Logger.Debug("Construct 実体ある？：" + (domain != null));
+        _domain.SetLayerScene(this);
     }
 
     void Start()
     {
+        var ct = this.GetCancellationTokenOnDestroy();
+
+        // 非同期メソッド実行
+        DelayAsync(ct).Forget();
+    }
+    // TODOテスト用非同期メソッド
+    private async UniTask DelayAsync(CancellationToken token)
+    {
+        await UniTask.Delay(
+            TimeSpan.FromSeconds(1),
+            DelayType.UnscaledDeltaTime,
+            PlayerLoopTiming.Update, token);
+
+        Logger.SetEnableLogging(true);
+        Logger.Debug("TryStart自動発火");
+        await _domain.TryStart();
+        Logger.Debug("TryStart自動発火 おわり -------------------");
     }
 
     void Update()
@@ -37,7 +54,7 @@ public class TitleScene : MonoBehaviour
 
     private void OnDestroy()
     {
-        LocalLogger.UnloadEnableLogging();
+        Logger.UnloadEnableLogging();
     }
 
     //async void OnButtonClicked()
@@ -59,48 +76,6 @@ public class TitleSceneTransition : LayerdSceneTransition<TitleUIScene.CreatePar
             { SceneLayer.UI, typeof(TitleUIScene) },
             //{ SceneLayer.Field, typeof(TitleFieldScene) },
         };
-        SceneName = _layer[SceneLayer.Logic].ToString();
     }
 }
 
-
-public interface ITitleModel
-{
-    public string GetRandomText();
-}
-public class TitleModel: ITitleModel
-{
-
-    public string GetRandomText()
-    {
-        return "123";
-    }
-}
-
-public class TitleModelMock : ITitleModel
-{
-    public string GetRandomText()
-        => "Test";
-}
-
-// Presenterクラス
-public class TitleScenePresenter : IStartable
-{
-    // TODO シーン変更でOnDestroy（Disposable）されるのか？
-    private readonly TitleView _view;
-    private readonly ITitleModel _model;
-
-    [Inject]
-    public TitleScenePresenter(TitleView view, ITitleModel model)
-    {
-        _view = view;
-        _model = model;
-    }
-
-    public void Start()
-    {
-        // MonoBehaviorのStartメソッドが呼ばれるタイミングで実行される(IStartableのおかげ)
-        var text = _model.GetRandomText();
-        _view.DrawText(text);
-    }
-}
