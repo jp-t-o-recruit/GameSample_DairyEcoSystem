@@ -3,40 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// TODO現状廃棄予定
 
-/// <summary>
-/// 特に機能を持たないが型判別のためのインターフェース
-/// </summary>
-//public interface IDomain<TParam> where TParam : new()
-//{
-//    public TParam Param { get; set; }
-//    public TParam InitialParam { get; set; }
-//    public TParam CreateParam();
-//}
-
-/// <summary>
-/// 特に機能を持たないが型判別のためのインターフェース
-/// </summary>
-public interface IDomainBaseParam
-{
-}
-
-//public abstract class DomainBaseParamBase : IDomainBaseParam
-//{
-
-//}
-
-//public abstract class DomainBase<TParam> : IDomain<TParam> where TParam: new()
-//{
-//    public TParam Param { get; set; }
-//    public TParam InitialParam { get; set; }
-//    public abstract TParam CreateParam();
-//}
-public abstract class DomainBase
-{
-
-}
 
 /// <summary>
 /// TODO 現在未使用
@@ -57,8 +24,7 @@ public class DomainManager
     //        return _domains;
     //    }
     //}
-    //private static Dictionary<Type, object>  _d12omains;
-    private static Dictionary<Type, object> _d12omains;
+    //private static Dictionary<Type, object>  _domains;
 
     //public static TDomain GetDomain<TDomain, TParam>()
     //    where TDomain : DomainBase<TParam>, new()
@@ -69,10 +35,10 @@ public class DomainManager
     //    return domain;
     //}
 
-    public static TDomain GetDomain<TDomain>()
-        where TDomain : DomainBase, new()
-    {
-        TDomain domain = new();
-        return domain;
-    }
+    //public static TDomain GetDomain<TDomain>()
+    //    where TDomain : ILayeredSceneDomain, new()
+    //{
+    //    TDomain domain = new();
+    //    return domain;
+    //}
 }

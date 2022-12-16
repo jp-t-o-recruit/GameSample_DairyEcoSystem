@@ -2,9 +2,9 @@ using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using UnityEditor;
 using UnityEngine;
 using VContainer;
-using VContainer.Unity;
 
 using Logger = MyLogger.MapBy<TitleScene>;
 
@@ -13,26 +13,27 @@ using Logger = MyLogger.MapBy<TitleScene>;
 /// 
 /// クラス名はシーンオブジェクトと同一名にする
 /// </summary>
-[PageAsset("TitleScenePage.prefab")]
 public class TitleScene : MonoBehaviour, ILayeredSceneLogic
 {
-    TitleSceneDomain _domain;
-
     [Inject]
-    public void Construct(TitleSceneDomain domain)
+    public void Construct()
     {
-        _domain = domain;
-        Logger.SetEnableLogging(true);
-        Logger.Debug("Construct 実体ある？：" + (domain != null));
-        _domain.SetLayerScene(this);
+        //Logger.SetEnableLogging(true);
+        //Logger.Debug("Construct 実体ある？：" + (domain != null));
+        //_domain.SetLayerScene(this);
     }
-
+    void Awake()
+    {
+    }
     void Start()
     {
-        var ct = this.GetCancellationTokenOnDestroy();
+        Logger.SetEnableLogging(false);
+        Logger.Debug("TitleScene スタート！");
 
-        // 非同期メソッド実行
-        DelayAsync(ct).Forget();
+        if (EditorApplication.isPlaying)
+        {
+            //ExSceneManager.Instance.NoticeDefaultTransition(() => new TitleSceneTransitioner());
+        }
     }
     // TODOテスト用非同期メソッド
     private async UniTask DelayAsync(CancellationToken token)
@@ -41,11 +42,6 @@ public class TitleScene : MonoBehaviour, ILayeredSceneLogic
             TimeSpan.FromSeconds(1),
             DelayType.UnscaledDeltaTime,
             PlayerLoopTiming.Update, token);
-
-        Logger.SetEnableLogging(true);
-        Logger.Debug("TryStart自動発火");
-        await _domain.TryStart();
-        Logger.Debug("TryStart自動発火 おわり -------------------");
     }
 
     void Update()
@@ -56,19 +52,17 @@ public class TitleScene : MonoBehaviour, ILayeredSceneLogic
     {
         Logger.UnloadEnableLogging();
     }
-
-    //async void OnButtonClicked()
-    //{
-    //    // TODO イベントハンドリングでドメイン呼び出すか
-    //    // そもそもドメイン自体がハンドリングするか
-    //    //var domain = new TitleSceneDomain();
-    //    //await domain.Login();
-    //}
 }
 
-public class TitleSceneTransition : LayerdSceneTransition<TitleUIScene.CreateParameter>
+public class TitleSceneTransitioner : LayerdSceneTransitioner<TitleSceneDomain.DomainParam>
 {
-    public TitleSceneTransition()
+    public TitleSceneTransitioner(ILayeredSceneDomain domain = default) : base(domain)
+    {
+        _domain = domain ?? new TitleSceneDomain();
+        SetupLayer();
+    }
+
+    private void SetupLayer()
     {
         _layer = new Dictionary<SceneLayer, System.Type>()
         {

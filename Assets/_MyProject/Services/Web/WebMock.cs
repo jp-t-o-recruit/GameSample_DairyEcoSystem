@@ -12,6 +12,9 @@ public interface IWebServiceImplementation
     public UniTask<UserInfo> GetUserInfo(string str, CancellationToken cancellationToken);
 
     public UniTask<UserInfo> PutLogin(string str, CancellationToken cancellationToken);
+
+    public class SceneTransitionReport : UserInfo { }
+    public UniTask<bool> PostSceneTransitionReport(SceneTransitionReport report, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -54,16 +57,24 @@ public class WebMock: IWebServiceImplementation
     public async UniTask<UserInfo> GetUserInfo(string str, CancellationToken cancellationToken)
     {
         await MockDelay(cancellationToken);
-        return new UserInfo() { userId = "123", userName = "マイケル鈴木" };
+        return new UserInfo() { UserId = "123", UserName = "マイケル鈴木" };
     }
     public async UniTask<UserInfo> PutLogin(string str, CancellationToken cancellationToken)
     {
         await MockDelay(cancellationToken);
-        return new UserInfo() { userId = "123", userName = "マイケル鈴木" };
+        return new UserInfo() { UserId = "123", UserName = "マイケル鈴木" };
     }
 
     public async UniTask<bool> PostUserResource(string str, CancellationToken cancellationToken)
     {
+        await MockDelay(cancellationToken);
+        return true;
+    }
+
+    public async UniTask<bool> PostSceneTransitionReport(IWebServiceImplementation.SceneTransitionReport report, CancellationToken cancellationToken)
+    {
+        // TODO テキスト出力とか
+        //report
         await MockDelay(cancellationToken);
         return true;
     }

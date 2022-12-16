@@ -1,11 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
-
 
 using Logger = MyLogger.MapBy<HomeUIScene>;
 
@@ -15,15 +12,12 @@ using Logger = MyLogger.MapBy<HomeUIScene>;
 /// 参考UIシーン構成
 /// https://engineering.enish.jp/?p=1115
 /// </summary>
-public class HomeUIScene : SceneBase
+public class HomeUIScene : SceneBase, ILayeredSceneUI
 {
-    public class CreateParameter
-    {
-        public string ViewLabel = "HomeUISceneデフォルトのラベル";
-    }
-
-    Button _nextSceneButton;
-    Label _viewLabel;
+    public Label _viewLabel;
+    public Button _nextSceneButton;
+    public Button _toSaveDataBuilderSceneButton;
+    public Button _toTitleSceneButton;
 
     void Awake()
     {
@@ -38,7 +32,7 @@ public class HomeUIScene : SceneBase
         // 自身のシーン(Additive)のルートキャンバスのUIカメラを削除する
         if (rootCanvas.worldCamera != null)
         {
-            Object.Destroy(rootCanvas.worldCamera.gameObject);
+            UnityEngine.Object.Destroy(rootCanvas.worldCamera.gameObject);
             rootCanvas.worldCamera = null;
         }
 
@@ -52,11 +46,15 @@ public class HomeUIScene : SceneBase
     /// </summary>
     void Start()
     {
-        _nextSceneButton = RootElement.Q<Button>("nextSceneButton");
         _viewLabel = RootElement.Q<Label>("homeSceneLabel");
+        _nextSceneButton = RootElement.Q<Button>("nextSceneButton");
+        _toSaveDataBuilderSceneButton = RootElement.Q<Button>("toSaveDataBuilderSceneButton");
+        _toTitleSceneButton = RootElement.Q<Button>("toTitleSceneButton");
 
+        //_viewLabel.text = ViewLabel. ;
         _nextSceneButton.clickable.clicked += OnButtonClicked;
-        _viewLabel.text = new CreateParameter().ViewLabel;
+        _toSaveDataBuilderSceneButton.clickable.clicked += OnToSaveDataBuilderSceneButtonClicked;
+        _toTitleSceneButton.clickable.clicked += OnToTitleSceneButtonClicked;
     }
 
     /// <summary>
@@ -64,6 +62,8 @@ public class HomeUIScene : SceneBase
     /// </summary>
     void Update()
     {
+        // TODO
+        _nextSceneButton.text = $"home: {TimeSpan.FromSeconds(DateTime.Now.Second).TotalSeconds % 60}";
     }
 
     private void OnDestroy()
@@ -72,15 +72,15 @@ public class HomeUIScene : SceneBase
         Logger.UnloadEnableLogging();
     }
 
-    async void OnButtonClicked()
+    void OnButtonClicked()
     {
+        if (IsInputLock) return;
+        IsInputLock = true;
+
         _viewLabel.text = "HomeUISceneボタンから設定！";
         _nextSceneButton.pickingMode = PickingMode.Ignore;
         Logger.SetEnableLogging(false);
         Logger.Debug("ホームでボタン押下");
-
-        TitleSceneTransition transition = new ();
-        await ExSceneManager.Instance.Replace(transition);
         ////ロード済みのシーンであれば、名前で別シーンを取得できる
         //Scene scene = SceneManager.GetSceneByName("ManagerScene");
 
@@ -98,5 +98,21 @@ public class HomeUIScene : SceneBase
         //        break;
         //    }
         //}
+        IsInputLock = false;
+    }
+    
+
+    private void OnToSaveDataBuilderSceneButtonClicked()
+    {
+        if (IsInputLock) return;
+        IsInputLock = true;
+        IsInputLock = false;
+    }
+
+    private void OnToTitleSceneButtonClicked()
+    {
+        if (IsInputLock)　return;
+        IsInputLock = true;
+        IsInputLock = false;
     }
 }

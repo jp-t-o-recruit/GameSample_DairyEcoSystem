@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -20,16 +21,12 @@ public class TitleUIScene : SceneBase, ILayeredSceneUI
         public string ViewLabel = "TitleUISceneデフォルトのラベル";
     }
 
-    Button _nextSceneButton;
+    public Button _nextSceneButton;
     Label _viewLabel;
 
-    TitleSceneDomain _domain;
-
     [Inject]
-    public void Construct(TitleSceneDomain domain)
+    public void Construct()
     {
-        _domain = domain;
-        _domain.SetLayerScene(this);
     }
 
     void Awake()
@@ -40,18 +37,20 @@ public class TitleUIScene : SceneBase, ILayeredSceneUI
         .GetComponent<Canvas>();
 
         // 自身のシーン(Additive)のルートキャンバスを取得する
-        var rootCanvas = GetComponent<Canvas>();
+        var mySceneCanvas = SceneManager.GetSceneByName($"{typeof(TitleUIScene)}").GetRootGameObjects()
+        .First(obj => obj.GetComponent<Canvas>() != null)
+        .GetComponent<Canvas>();
 
         // 自身のシーン(Additive)のルートキャンバスのUIカメラを削除する
-        if (rootCanvas.worldCamera != null)
+        if (mySceneCanvas.worldCamera != null)
         {
-            Object.Destroy(rootCanvas.worldCamera.gameObject);
-            rootCanvas.worldCamera = null;
+            UnityEngine.Object.Destroy(mySceneCanvas.worldCamera.gameObject);
+            mySceneCanvas.worldCamera = null;
         }
 
 
         // 自身のシーン(Additive)のルートキャンバスのUIカメラを親シーン(Root)のカメラに置き換える
-        rootCanvas.worldCamera = rootCanvasParentScene.worldCamera;
+        mySceneCanvas.worldCamera = rootCanvasParentScene.worldCamera;
     }
 
     // Start is called before the first frame update
@@ -68,6 +67,7 @@ public class TitleUIScene : SceneBase, ILayeredSceneUI
     void Update()
     {
         _viewLabel.text = TitleSceneParamsSO.Entity.ViewLabel.ToString();
+        _nextSceneButton.text = $"title: {TimeSpan.FromSeconds(DateTime.Now.Second).TotalSeconds % 60}";
     }
 
     private void OnDestroy()
@@ -76,15 +76,17 @@ public class TitleUIScene : SceneBase, ILayeredSceneUI
         LocalLogger.UnloadEnableLogging();
     }
 
-    async void OnButtonClicked()
+    void OnButtonClicked()
     {
+        if (IsInputLock) return;
+        IsInputLock = true;
+
         _viewLabel.text = "TitleUISceneボタンから設定！";
         _nextSceneButton.pickingMode = PickingMode.Ignore;
         LocalLogger.SetEnableLogging(false);
         LocalLogger.Debug("タイトルでボタン押下");
 
-        // TODO
-        await _domain.Login();
         _nextSceneButton.pickingMode = PickingMode.Position;
+        IsInputLock = false;
     }
 }

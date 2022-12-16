@@ -1,23 +1,19 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
 /// <summary>
 /// ユーザー情報
 /// </summary>
 [System.Serializable]
 public class UserInfo
 {
-    public string userId;
-    public string userName;
+    public string UserId;
+    public string UserName;
 }
 
 public class NullUserInfo: UserInfo
 {
     public NullUserInfo()
     {
-        userId = "これが参照、表示されるのはおかしい。---UserId";
-        userName = "これが参照、表示されるのはおかしい。---UserName";
+        UserId = "これが参照、表示されるのはおかしい。---UserId";
+        UserName = "これが参照、表示されるのはおかしい。---UserName";
     }
 }
 

@@ -17,8 +17,14 @@ public class TitleSceneLifetimeScope : LifetimeScope
         //builder.Register<TitleSceneDomain.DomainParam, TitleSceneDomain.DomainParam>(Lifetime.Transient);
         //builder.RegisterEntryPoint<TitleSceneDomain>(Lifetime.Singleton);
 
-        builder.Register<CancellationTokenSource>(Lifetime.Transient);
-        builder.Register<TitleSceneDomain>(Lifetime.Singleton);
+        //builder.Register<CancellationTokenSource>(Lifetime.Transient).AsImplementedInterfaces().AsSelf();
+        //builder.Register<TitleSceneDomain>(Lifetime.Singleton);
+        //var cts = new CancellationTokenSource();
+        //builder.RegisterInstance(cts);
+        //var domain = new TitleSceneDomain(cts);
+        //builder.RegisterInstance(domain);
+
+        //builder.RegisterComponentInHierarchy<TitleScene>();
 
         if (null != titleScene)
         {

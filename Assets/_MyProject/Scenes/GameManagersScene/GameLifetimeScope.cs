@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using UnityEditor;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -19,6 +20,12 @@ public class GameLifetimeScope : LifetimeScope
     protected override void Configure(IContainerBuilder builder)
     {
         base.Configure(builder);
+
+
+        if (EditorApplication.isPlaying)
+        {
+            //ExSceneManager.Instance.NoticeDefaultTransition(() => new TitleSceneTransitioner());
+        }
 
         // ここでDIコンテナにどのインスタンスをどの型で保存しておくかを書く
 

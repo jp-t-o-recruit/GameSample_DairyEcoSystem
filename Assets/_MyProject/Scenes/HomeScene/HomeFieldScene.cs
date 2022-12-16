@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// HomeScene内のゲームオブジェクト管理シーン
 /// </summary>
-public class HomeFieldScene : MonoBehaviour
+public class HomeFieldScene : MonoBehaviour, ILayeredSceneField
 {
     // Start is called before the first frame update
     void Start()

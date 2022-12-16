@@ -12,4 +12,9 @@ public abstract class SceneBase : MonoBehaviour
     /// UIDocumentのRoot要素(ヒエラルキー最上位)を返す
     /// </summary>
     protected VisualElement RootElement { get => _uiDocument?.rootVisualElement; }
+
+    /// <summary>
+    /// 多重入力防止フラグ
+    /// </summary>
+    internal protected bool IsInputLock = false;
 }

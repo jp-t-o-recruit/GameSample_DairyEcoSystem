@@ -1,3 +1,4 @@
+using log4net.Repository.Hierarchy;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -57,7 +58,7 @@ public class MyLogger : SingletonBase<MyLogger>
     /// <summary>
     /// ロガー実態
     /// </summary>
-    public ILogger _logger;
+    private ILogger _logger;
 
     /// <summary>
     /// ログ出力有効の型をキーにしたマッピング
@@ -69,8 +70,10 @@ public class MyLogger : SingletonBase<MyLogger>
             if (null == _LoggingDic)
             {
                 _LoggingDic = new Dictionary<Type, bool>();
-                // TODO シングルトン実装確認用のログ出力
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+                // シングルトン実装確認用のログ出力
                 Debug.Log("MyLogger 生成 _isLogging" + typeof(Type).Name);
+#endif
             }
             return _LoggingDic;
         }
@@ -83,17 +86,30 @@ public class MyLogger : SingletonBase<MyLogger>
     /// <typeparam name="TType"></typeparam>
     public class MapBy<TType>
     {
+        private static void Log(LogType limitLogType, string str)
+        {
+            if (LogLevelMath.IsBelow(Instance.LoggingLevel, limitLogType) &&
+                GetEnableLogging())
+            {
+                Instance.Logger.Log(Instance.LoggingLevel, str);
+            }
+        }
+
         /// <summary>
-        /// ログ出力処理
+        /// ログ出力処理 Debug
         /// </summary>
         /// <param name="str">出力したい文字列</param>
         public static void Debug(string str)
         {
-            if (LogLevelMath.IsBelow(Instance.LoggingLevel, LogType.Log) &&
-                GetEnableLogging())
-            {
-                Instance.Logger.Log(str);
-            }
+            Log(LogType.Log, str);
+        }
+        /// <summary>
+        /// ログ出力処理 Warning
+        /// </summary>
+        /// <param name="str">出力したい文字列</param>
+        public static void Warning(string str)
+        {
+            Log(LogType.Warning, str);
         }
 
         /// <summary>
@@ -102,14 +118,14 @@ public class MyLogger : SingletonBase<MyLogger>
         /// <returns></returns>
         public static bool GetEnableLogging()
         {
-            bool isLogging = Instance.LoggingDic.GetValueOrDefault(typeof(TType), true);
+            bool isLogging = Instance.LoggingDic.GetValueOrDefault(typeof(TType), false);
             return isLogging;
         }
 
         /// <summary>
         /// ログ出力有効フラグ設定
         /// </summary>
-        /// <param name="enable"></param>
+        /// <param name="enable">true:ログ出力有効</param>
         public static void SetEnableLogging(bool enable)
         {
             var types = typeof(TType);
@@ -137,9 +153,19 @@ public class MyLogger : SingletonBase<MyLogger>
     /// </summary>
     public MyLogger()
     {
-        // TODO シングルトン実装確認用のログ出力
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        // シングルトン実装確認用のログ出力
         Debug.Log("MyLogger コンストラクタ ");
-
+#endif
         Logger = Debug.unityLogger;
+    }
+
+    /// <summary>
+    /// Poor man's DI 用コンストラクタ
+    /// </summary>
+    /// <param name="logger"></param>
+    public MyLogger(ILogger logger)
+    {
+        Logger = logger;
     }
 }

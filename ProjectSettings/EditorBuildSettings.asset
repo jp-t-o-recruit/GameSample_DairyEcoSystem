@@ -21,6 +21,9 @@ EditorBuildSettings:
     path: Assets/_MyProject/Scenes/HomeScene/HomeUIScene.unity
     guid: d0af79bb6e247b9478c27d0d9f1ad2a9
   - enabled: 1
+    path: Assets/_MyProject/Scenes/HomeScene/HomeFieldScene.unity
+    guid: 8bbee02b8b7bd574e8d7db26f55bb6d3
+  - enabled: 1
     path: Assets/_MyProject/Scenes/SampleScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
   - enabled: 1

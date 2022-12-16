@@ -1,18 +1,15 @@
 using UnityEngine.UIElements;
 
-public class CreditNotationScene : SceneBase
+public class CreditNotationScene : SceneBase, ILayeredSceneLogic
 {
-    Button _backButton;
-    Label _viewLabel;
+    public Button BackButton;
+    public Label ViewLabel;
 
     // Start is called before the first frame update
     void Start()
     {
-        _backButton = RootElement.Q<Button>("backButton");
-        _viewLabel = RootElement.Q<Label>("viewLabel");
-
-        _backButton.clickable.clicked += OnButtonClicked;
-        _viewLabel.text = CreditNotationSceneParamsSO.Entity.ViewLabel.ToString();
+        BackButton = RootElement.Q<Button>("backButton");
+        ViewLabel = RootElement.Q<Label>("viewLabel");
     }
 
     // Update is called once per frame
@@ -23,7 +20,7 @@ public class CreditNotationScene : SceneBase
 
     private void OnDestroy()
     {
-        _backButton.clickable.clicked -= OnButtonClicked;
+        BackButton.clickable.clicked -= OnButtonClicked;
     }
 
     private void OnButtonClicked()
