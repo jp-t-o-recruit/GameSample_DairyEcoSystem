@@ -24,7 +24,6 @@ public enum SceneStackType
     /// "現在シーン"をPopする、ただしフェールセーフとして遷移先の指定シーンで遷移呼び出し
     /// </summary>
     PopTry,
-    //Pop,
 }
 
 /// <summary>
@@ -41,7 +40,7 @@ public enum SceneStackType
 /// </summary>
 public class ExSceneManager : SingletonBase<ExSceneManager>
 {
-    private Stack<ISceneTransitioner> _transitioners;
+    private Stack<ILayeredSceneDomain> _domains;
 
     ///// <summary>
     ///// コンストラクタ
@@ -53,109 +52,134 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
 
     public void Initialize()
     {
-        _transitioners = new Stack<ISceneTransitioner>();
+        if (_domains != default)
+        {
+            ClearAll(new CancellationTokenSource()).Forget();
+        }
+        _domains = new Stack<ILayeredSceneDomain>();
         Logger.SetEnableLogging(false);
         Logger.Debug("ExSceneManager イニシャライズ！");
     }
 
 
-    async UniTask UnloadSceneAsync(ISceneTransitioner transition, CancellationTokenSource cts)
+    async UniTask UnloadSceneAsync(ILayeredSceneDomain domain, CancellationTokenSource cts)
     {
-        transition.Discard(cts);
-        await transition.UnLoadScenes(cts);
+        domain.Discard(cts);
+        ISceneTransitioner transitioner = domain.CreateTransitioner();
+        await transitioner.UnLoadScenes(cts);
+        transitioner.Dispose();
     }
 
+    /// <summary>
+    /// 階層シーンの不足を補い完全性を整えるシーンロード
+    /// </summary>
+    /// <param name="transitioner"></param>
+    /// <param name="cts"></param>
+    /// <returns></returns>
     async UniTask PushOrRetry(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        // TODO 動作確認中ログ
-        Logger.Debug("Retry:--------------------------------------");
-        Logger.Debug("Retry Count:" + _transitioners.Count);
-        Logger.Debug("Retry class is:" + transitioner.GetSceneName());
-
-        if (_transitioners.Count > 0 && _transitioners.Last().GetSceneName() == transitioner.GetSceneName())
+        if (_domains.Count > 0 && _domains.Last().GetSceneName() == transitioner.GetSceneName())
         {
             var scenes = await transitioner.LoadScenes(cts);
             Scene scene = scenes.First();
-            Logger.Debug("Retry ロード後 トップシーン:" + scene.name);
+            Logger.Debug("シーン遷移　Retry ロード後 トップシーン:" + scene.name);
             SceneManager.SetActiveScene(scene);
         }
         else
         {
+            Logger.Debug("シーン遷移　Retry で　Push　呼び出し:" + transitioner.GetSceneName());
             await Push(transitioner, cts);
         }
     }
 
     /// <summary>
-    /// 外からPushとして呼び出されるPush処理
+    /// クラス外からPushとして呼び出されるPush処理
     /// </summary>
-    /// <param name="transition"></param>
+    /// <param name="transitioner"></param>
     /// <param name="cts"></param>
     /// <returns></returns>
-    async UniTask PushGlobal(ISceneTransitioner transition, CancellationTokenSource cts)
+    async UniTask PushGlobal(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        if (_transitioners.Count > 0)
+        if (_domains.Count > 0)
         {
-            var lastTrantion = _transitioners.Last();
-            Logger.Debug("PushGlobal suspend実行 :" + lastTrantion.GetSceneName());
-            lastTrantion.Suspend(cts);
+            var lastDomain = _domains.Last();
+            Logger.Debug("PushGlobal suspend実行 :" + lastDomain.GetSceneName());
+            lastDomain.Suspend(cts);
         }
-        Logger.Debug("PushGlobal push開始" + transition.GetSceneName());
-        await Push(transition, cts);
+        Logger.Debug("PushGlobal push開始" + transitioner.GetSceneName());
+        await Push(transitioner, cts);
     }
 
     /// <summary>
     /// 内部的にPushとして呼び出すPush処理
     /// </summary>
-    /// <param name="transition"></param>
+    /// <param name="transitioner"></param>
     /// <param name="cts"></param>
     /// <returns></returns>
-    private async UniTask Push(ISceneTransitioner transition, CancellationTokenSource cts)
+    private async UniTask Push(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        _transitioners.Push(transition);
-        Logger.Debug("Push transition：" + transition.GetType());
-        var scenes = await transition.LoadScenes(cts);
+        _domains.Push(transitioner.Domain);
+        Logger.Debug("Push transition：" + transitioner.Domain.GetSceneName());
+        var scenes = await transitioner.LoadScenes(cts);
         Scene scene = scenes.First();
         Logger.Debug("Push シーンロードした：" + scene.name);
         SceneManager.SetActiveScene(scene);
     }
 
-    async UniTask Replace(ISceneTransitioner transition, CancellationTokenSource cts)
+    /// <summary>
+    /// 指定シーンをスタックピークとして交換するシーン読み込み
+    /// </summary>
+    /// <param name="transitioner"></param>
+    /// <param name="cts"></param>
+    /// <returns></returns>
+    async UniTask Replace(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        var removeTransition = _transitioners.Count > 0 ? _transitioners.Pop() : default;
+        var removeDomain = _domains.Count > 0 ? _domains.Pop(): default;
 
         Logger.Debug("Replace スタック抜き");
         // 新たなシーンをアクティブにする
-        await Push(transition, cts);
+        await Push(transitioner, cts);
         Logger.Debug("Replace アンロード前");
         // シーン数0が発生しないようアクティブなシーンがある状態で以前のシーンアンロード
-        if (removeTransition != default)
+        if (removeDomain != default)
         {
-            await UnloadSceneAsync(removeTransition, cts);
+            await UnloadSceneAsync(removeDomain, cts);
         }
     }
-
-    async UniTask ReplaceAll(ISceneTransitioner transition, CancellationTokenSource cts)
+    /// <summary>
+    /// 指定シーンのみのスタックに更新するシーン読み込み
+    /// </summary>
+    /// <param name="transitioner"></param>
+    /// <param name="cts"></param>
+    /// <returns></returns>
+    async UniTask ReplaceAll(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        while(_transitioners.Count > 0)
-        {
-            await UnloadSceneAsync(_transitioners.Pop(), cts);
-        }
-
-        await Push(transition, cts);
+        await ClearAll(cts);
+        await Push(transitioner, cts);
     }
+
+    private async UniTask ClearAll(CancellationTokenSource cts)
+    {
+        while (_domains.Count > 0)
+        {
+            await UnloadSceneAsync(_domains.Pop(), cts);
+        }
+    }
+
+
     /// <summary>
     /// アクティブシーンをPop、出来ない場合フェールセーフとして指定シーンにReplace
     /// </summary>
-    async UniTask TryPopDefaultReplace(ISceneTransitioner transition, CancellationTokenSource cts)
+    async UniTask TryPopDefaultReplace(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        if (_transitioners.Count > 1) {
-            // Pop可能→つまり戻るシーンがある→スタックが2以上なら
+        if (_domains.Count > 1) {
+            // Pop可能→戻るシーンがある→スタックが2以上なら
             await Pop(cts);
         }
         else
         {
-            Logger.Warning($"シーンをPopするつもりが出来なかった。シーンStack数：{_transitioners.Count}, 最上シーン名：{_transitioners.Last()?.GetSceneName()}");
-            await Replace(transition, cts);
+            Logger.Warning($"シーンをPopするつもりが出来なかった。シーンStack数：{_domains.Count}, 最上シーン名：{_domains.Last()?.GetSceneName()}");
+            await Replace(transitioner, cts);
         }
     }
 
@@ -165,62 +189,43 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
     async UniTask Pop(CancellationTokenSource cts)
     {
         // スタック最後を削除
-        var unloadTransition = _transitioners.Pop();
-        await UnloadSceneAsync(unloadTransition, cts);
+        var unloadDomain = _domains.Pop();
+        await UnloadSceneAsync(unloadDomain, cts);
         
-        var lastTrantion = _transitioners.Last();
-        SceneActivateFromTransition(lastTrantion);
-        lastTrantion.Resume(cts);
+        var lastDomain = _domains.Last();
+        ActivateSceneFromDomain(lastDomain);
+        lastDomain.Resume(cts);
     }
 
-    public async UniTask Transition(ISceneTransitioner transition, CancellationTokenSource cts)
+    public async UniTask Transition(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        switch (transition.StackType)
+        switch (transitioner.StackType)
         {
             case SceneStackType.PushOrRetry:
-                await PushOrRetry(transition, cts);
+                await PushOrRetry(transitioner, cts);
                 break;
             case SceneStackType.Push:
-                await PushGlobal(transition, cts);
+                await PushGlobal(transitioner, cts);
                 break;
             case SceneStackType.Replace:
-                await Replace(transition, cts);
+                await Replace(transitioner, cts);
                 break;
             case SceneStackType.ReplaceAll:
-                await ReplaceAll(transition, cts);
+                await ReplaceAll(transitioner, cts);
                 break;
             case SceneStackType.PopTry:
-                await TryPopDefaultReplace(transition, cts);
+                await TryPopDefaultReplace(transitioner, cts);
                 break;
-            //case SceneStackType.Pop:
-            //    await Pop(cts);
-            //    break;
             default:
-                throw new ArgumentException($"シーン遷移方法判定中に例外が発生しました。{transition.StackType} is not {typeof(SceneStackType).Name}.");
-        }        
-    }
-
-    private SceneBase GetSceneBaseForLast()
-    {
-        Scene scene = SceneManager.GetActiveScene();
-        SceneBase sceneBase = null;
-
-        //GetRootGameObjectsで、そのシーンのルートGameObjects
-        //つまり、ヒエラルキーの最上位のオブジェクトが取得できる
-        foreach (var gameObject in scene.GetRootGameObjects())
-        {
-            sceneBase = gameObject.GetComponent<SceneBase>();
-            if (sceneBase != null)
-            {
-                break;
-            }
+                throw new ArgumentException($"シーン遷移方法判定中に例外が発生しました。{transitioner.StackType} is not {typeof(SceneStackType).Name}.");
         }
-        return sceneBase;
+
+        transitioner.Dispose();
     }
 
-    private bool SceneActivateFromTransition(ISceneTransitioner trantion)
+    private bool ActivateSceneFromDomain(ILayeredSceneDomain domain)
     {
-        string sceneName = trantion.GetSceneName();
+        string sceneName = domain.GetSceneName();
         var scene = SceneManager.GetSceneByName(sceneName);
         if (scene.IsValid())
         {
@@ -228,6 +233,33 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
             return true;
         }
         return false;
+    }
+
+
+    /// <summary>
+    /// シーンクラス（スクリプト）にパラメータをアタッチする
+    /// </summary>
+    /// <param name="scene"></param>
+    /// <returns></returns>
+    public TComponent GetSceneBaseFromScene<TComponent>(Scene scene)
+    {
+        Logger.Debug("GetSceneBase取得開始:" + scene.name);
+        TComponent component = default;
+
+        // GetRootGameObjectsで、そのシーンのルートGameObjects
+        // つまり、ヒエラルキーの最上位のオブジェクトが取得できる
+        foreach (var gameObject in scene.GetRootGameObjects())
+        {
+            component = gameObject.GetComponent<TComponent>();
+            if (component != null)
+            {
+                break;
+            }
+        }
+
+        if ( component == null) Logger.Warning($"シーン読み込み　GetSceneBase　でシーンコンポーネント：{typeof(TComponent).Name} の取得ができなかった。");
+
+        return component;
     }
 
     public SceneLayer GetLayer(ILayeredScene layered)
@@ -260,51 +292,6 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         }
         return component;
     }
-
-    /// <summary>
-    /// TODO ReplenishLayeredSceneOnPlayModeの方で実現しているので用済み
-    /// </summary>
-    /// <param name="factory"></param>
-    //internal async void NoticeDefaultTransition(Func<ISceneTransitioner> factory)
-    //{
-    //    Logger.Debug("NoticeDefaultTransition Count: " + _transitioners.Count);
-    //    if (_transitioners == default || _transitioners.Count == 0)
-    //    {
-    //        Instance.Initialize();
-
-    //        var transition = factory();
-    //        Logger.Debug("NoticeDefaultTransition: 初期化してプッシュした" + transition.GetSceneName());
-
-    //        await Instance.ReplaceAll(transition);
-    //    }
-    //    else
-    //    {
-    //        // TODO _transitionsを格納していてもデバッグで保持が続いてるだけで初期化がそのデバッグで呼ばれていないルートもある
-    //        // GameManagersSceneAutoLoaderで初期化呼ぶことでそのルートを断つ？
-    //        Logger.Debug($"NoticeDefaultTransition 初期化しない。 transitions数：{_transitioners.Count}  ：{_transitioners.Last().GetSceneName()}");
-    //    }
-    //}
-
-    //internal async UniTask TrySetup()
-    //{
-    //    // GameManagerSceneを生成
-    //    // GameManagerSceneをヒエラルキートップに
-    //    // アクティブシーンは変更せず
-    //    var sceneName = Enum.GetName(typeof(SceneEnum), SceneEnum.GameManagersScene);
-    //    Logger.SetEnableLogging(true);
-    //    Scene scene = SceneManager.GetSceneByName(sceneName);
-    //    if (scene.isLoaded)
-    //    {
-    //        Logger.Debug("GameManagerSceneを生成　しない: " + scene.buildIndex);
-    //        return;
-    //    }
-
-    //    // GameManagersSceneは常駐させる
-    //    await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-    //    scene = SceneManager.GetSceneByName(sceneName);
-    //    Logger.Debug("GameManagerSceneを生成　した？: " + scene.buildIndex);
-    //}
-
 }
 
 

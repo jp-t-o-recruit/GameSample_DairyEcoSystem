@@ -1,5 +1,3 @@
-using Cysharp.Threading.Tasks;
-using System;
 using System.Threading;
 using VContainer;
 
@@ -8,7 +6,7 @@ using Logger = MyLogger.MapBy<HomeSceneDomain>;
 /// <summary>
 /// タイトルシーン構成管理
 /// </summary>
-public class HomeSceneDomain : DomainBase<
+public class HomeSceneDomain : LayeredSceneDomainBase<
     HomeScene,
     HomeUIScene,
     HomeFieldScene,
@@ -35,10 +33,6 @@ public class HomeSceneDomain : DomainBase<
     public override void Initialize(CancellationTokenSource cts)
     {
         base.Initialize(cts);
-        // TODO waitするのは設計がおかしい
-        //Logger.Debug($"Initialize {this.GetType()}");
-        //await UniTask.Delay(TimeSpan.FromMilliseconds(1), cancellationToken: cts.Token);
-        //await UniTask.WaitForFixedUpdate();
         Logger.Debug($"_viewLabel: {_uiLayer._viewLabel != null},_initialParam: {_initialParam != null}, ViewLabel: {_initialParam.ViewLabel != null}");
         _uiLayer._viewLabel.text = _initialParam.ViewLabel;
         _uiLayer._nextSceneButton.clickable.clicked += ToBattleScene;
@@ -49,7 +43,6 @@ public class HomeSceneDomain : DomainBase<
 
     public override void Suspend(CancellationTokenSource cts)
     {
-        // TODO baseを呼ぶと永遠に帰ってこない
         base.Suspend(cts);
         Logger.Debug($"Suspend {this.GetType()}");
     }
@@ -60,7 +53,6 @@ public class HomeSceneDomain : DomainBase<
     }
     public override void Discard(CancellationTokenSource cts)
     {
-        base.Discard(cts);
         Logger.Debug($"Discard {this.GetType()}");
 
         _cts?.Cancel();
@@ -71,13 +63,15 @@ public class HomeSceneDomain : DomainBase<
         //_uiLayer._toSaveDataBuilderSceneButton.clickable.clicked -= OnButtonClicked;
         _uiLayer._toTitleSceneButton.clickable.clicked -= OnTitleSceneButtonClicked;
         Logger.UnloadEnableLogging();
+        // 共通開放なので最後呼び
+        base.Discard(cts);
     }
 
     private async void ToBattleScene()
     {
         Logger.SetEnableLogging(true);
         Logger.Debug("バトルボタン押下");
-        await new BattleSceneDomain().SceneTransition(_cts);
+        await new BattleSceneDomain().SceneTransition();
     }
 
     /// <summary>
@@ -89,7 +83,7 @@ public class HomeSceneDomain : DomainBase<
             // ホーム画面に戻るように明示的にシーンを連携する
             async () => {
                 var domain = new CreditNotationSceneDomain();
-                await domain.SceneTransition(_cts, transitioner => {
+                await domain.SceneTransition(editCallback: transitioner => {
                     transitioner.StackType = SceneStackType.Push;
                 });
             },
@@ -106,12 +100,15 @@ public class HomeSceneDomain : DomainBase<
     {
         Logger.SetEnableLogging(true);
         Logger.Debug($"{this} タイトルボタン押下");
-        await DomainCommonService.SceneTransition(_cts,
+
+        CancellationTokenSource endDomainCts = new ();
+
+        await DomainCommonService.SceneTransition(endDomainCts,
             async () => {
-                await new TitleSceneDomain().SceneTransition(_cts);
+                await new TitleSceneDomain().SceneTransition();
             },
             async (webService, report) => {
-                await webService.PostSceneTransitionReport(report, _cts.Token);
+                await webService.PostSceneTransitionReport(report, endDomainCts.Token);
             });
     }
 }

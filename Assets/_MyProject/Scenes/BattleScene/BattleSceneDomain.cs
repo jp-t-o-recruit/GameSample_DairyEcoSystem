@@ -6,7 +6,7 @@ using VContainer;
 /// <summary>
 /// バトルシーン
 /// </summary>
-public class BattleSceneDomain : DomainBase<
+public class BattleSceneDomain : LayeredSceneDomainBase<
     BattleScene,
     BattleUIScene,
     BattleFieldScene,
@@ -31,16 +31,13 @@ public class BattleSceneDomain : DomainBase<
 
     public override void Discard(CancellationTokenSource cts)
     {
-        base.Discard(cts);
-
         _uiLayer.questButton.clickable.clicked -= ToHome;
+        base.Discard(cts);
     }
 
     private async void ToHome()
     {
-        HomeSceneDomain domain = new ();
-        CancellationTokenSource cts = new();
-        await domain.SceneTransition(cts);
+        await new HomeSceneDomain().SceneTransition();
     }
 }
 

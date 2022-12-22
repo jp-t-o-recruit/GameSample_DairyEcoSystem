@@ -6,7 +6,7 @@ using VContainer;
 /// <summary>
 /// クレジット表記シーン
 /// </summary>
-public class CreditNotationSceneDomain : DomainBase<
+public class CreditNotationSceneDomain : LayeredSceneDomainBase<
     CreditNotationScene,
     NullDomain.NullLayeredSceneUI,
     NullDomain.NullLayeredSceneField,
@@ -23,12 +23,12 @@ public class CreditNotationSceneDomain : DomainBase<
         };
     }
 
-    private CancellationTokenSource _clientLifetimeTokenSource;
+    private CancellationTokenSource _cts;
 
     [Inject]
     public CreditNotationSceneDomain()
     {
-        _clientLifetimeTokenSource = new();
+        _cts = new();
     }
 
     public override void Initialize(CancellationTokenSource cts)
@@ -54,12 +54,11 @@ public class CreditNotationSceneDomain : DomainBase<
     }
     public override void Discard(CancellationTokenSource cts)
     {
-        base.Discard(cts);
-
-        _clientLifetimeTokenSource?.Cancel();
-        _clientLifetimeTokenSource?.Dispose();
-        _clientLifetimeTokenSource = null;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
         _logicLayer.BackButton.clickable.clicked -= OnNextSceneButtonClicked;
+        base.Discard(cts);
     }
 
     /// <summary>
@@ -67,12 +66,13 @@ public class CreditNotationSceneDomain : DomainBase<
     /// </summary>
     private async void OnNextSceneButtonClicked()
     {
-        await DomainCommonService.SceneTransition(_clientLifetimeTokenSource,
+        CancellationTokenSource endDomainCts = new();
+        await DomainCommonService.SceneTransition(endDomainCts,
             async () => {
-                await _initialParam.sceneTransitionerCollback(new TitleSceneDomain(), _clientLifetimeTokenSource);
+                await _initialParam.sceneTransitionerCollback(new TitleSceneDomain(), endDomainCts);
             },
             async (webService, report) => {
-                await webService.PostSceneTransitionReport(report, _clientLifetimeTokenSource.Token);
+                await webService.PostSceneTransitionReport(report, endDomainCts.Token);
             });
     }
 }

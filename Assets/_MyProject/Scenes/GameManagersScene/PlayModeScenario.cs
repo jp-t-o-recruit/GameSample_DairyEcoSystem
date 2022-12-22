@@ -27,6 +27,8 @@ public class PlayModeScenario : IScenario
     /// </summary>
     public void OnActive()
     {
+        // playモードでインスタンスが続いてるかもしれないので初期化
+        ExSceneManager.Instance.Initialize();
         //SetupScenarioBySaveData();
 
         Scene scene = SceneManager.GetActiveScene();
@@ -34,7 +36,7 @@ public class PlayModeScenario : IScenario
 
         if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.TitleScene, () => new TitleScenario())) { }
         else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.HomeScene, () => new HomeScenario("TODOgame", null, new HomeScenarioState()))) { }
-        else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.BattleScene, () => new DefaultScenario())) { }
+        else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.BattleScene, () => new DefaultScenario("TODO999"))) { }
 
         Logger.SetEnableLogging(true);
         Logger.Debug($"PlayModeで{scenario.GetType()}シナリオを開始");
@@ -66,9 +68,7 @@ public class PlayModeScenario : IScenario
             // debug開始用のセーブデータがあるならそれで開始
             // TODO　シナリオIDからシナリオ作成するサービスを作る
             // TODO　シナリオ作成したらシーン遷移する処理を作る
-            var domain = new HomeSceneDomain();
-            System.Threading.CancellationTokenSource cts = new();
-            domain.SceneTransition(cts).Forget();
+            new HomeSceneDomain().SceneTransition().Forget();
         }
         return first != default;
     }

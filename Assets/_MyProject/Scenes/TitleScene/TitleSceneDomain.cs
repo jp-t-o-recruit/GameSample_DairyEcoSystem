@@ -6,7 +6,7 @@ using Logger = MyLogger.MapBy<TitleSceneDomain>;
 /// <summary>
 /// タイトルシーン構成管理
 /// </summary>
-public class TitleSceneDomain : DomainBase<
+public class TitleSceneDomain : LayeredSceneDomainBase<
     TitleScene,
     TitleUIScene,
     TitleFieldScene,
@@ -21,8 +21,6 @@ public class TitleSceneDomain : DomainBase<
     private CancellationTokenSource _cts;
 
     [Inject]
-    //public TitleSceneDomain(CancellationTokenSource clientLifetimeTokenSource)
-    //                        DomainParam domainParam)
     public TitleSceneDomain()
     {
         _cts = new();
@@ -48,7 +46,6 @@ public class TitleSceneDomain : DomainBase<
     }
     public override void Discard(CancellationTokenSource cts)
     {
-        base.Discard(cts);
         Logger.Debug($"Discard {this.GetType()}");
 
         _cts?.Cancel();
@@ -56,11 +53,12 @@ public class TitleSceneDomain : DomainBase<
         _uiLayer._nextSceneButton.clickable.clicked -= OnButtonClicked;
         _uiLayer._creditNotationButton.clickable.clicked -= OnCreditNotationClicked;
         Logger.SetEnableLogging(false);
+        base.Discard(cts);
     }
 
     private async void OnCreditNotationClicked()
     {
-        await new CreditNotationSceneDomain().SceneTransition(_cts);
+        await new CreditNotationSceneDomain().SceneTransition();
     }
 
     private async void OnButtonClicked()
@@ -95,6 +93,7 @@ public class TitleSceneDomain : DomainBase<
                 ViewLabel = $"ユーザー名:{userInfo.UserName}"
             }
         };
-        await homeDomain.SceneTransition(_cts);
+
+        await homeDomain.SceneTransition();
     }
 }

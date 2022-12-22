@@ -11,12 +11,12 @@ public class DomainCommonService
     /// <summary>
     /// シーン間移動
     /// </summary>
-    /// <param name="cLTS"></param>
+    /// <param name="cts"></param>
     /// <param name="sceneTransitionerCollback">通信終了後シーン移動実体を返すコールバック（return前に通信後の雑処理を実施してもよい）</param>
     /// <param name="webCallback">シーン間移動通信コールバック</param>
     /// <returns></returns>
     /// <exception cref="OperationCanceledException"></exception>
-    public static async UniTask SceneTransition(CancellationTokenSource cLTS,
+    public static async UniTask SceneTransition(CancellationTokenSource cts,
                                                 Func<UniTask> sceneTransitionerCollback,
                                                 Func<IWebServiceImplementation, IWebServiceImplementation.SceneTransitionReport, UniTask> webCallback = default)
     {
@@ -26,7 +26,7 @@ public class DomainCommonService
         if (webCallback == default)
         {
             webCallback = async (webService, report) => {
-                await webService.PostSceneTransitionReport(report, cLTS.Token);
+                await webService.PostSceneTransitionReport(report, cts.Token);
             };
         }
         Logger.Debug("2/3　同期通信開始");
@@ -37,7 +37,7 @@ public class DomainCommonService
             UserName = accountService.User.UserName
         };
 
-        await WebConnection(cLTS, async (webService) => {
+        await WebConnection(cts, async (webService) => {
             await webCallback(webService, report);
         });
 

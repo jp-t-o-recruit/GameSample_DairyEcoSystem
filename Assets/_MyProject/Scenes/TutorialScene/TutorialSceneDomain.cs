@@ -6,7 +6,7 @@ using Logger = MyLogger.MapBy<TutorialSceneDomain>;
 /// <summary>
 /// チュートリアルシーン
 /// </summary>
-public class TutorialSceneDomain : DomainBase<
+public class TutorialSceneDomain : LayeredSceneDomainBase<
     TutorialScene,
     NullDomain.NullLayeredSceneUI,
     NullDomain.NullLayeredSceneField,
