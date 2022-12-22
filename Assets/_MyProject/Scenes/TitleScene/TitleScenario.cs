@@ -24,8 +24,8 @@ public class TitleScenario : IScenario
     {
         // 通常のタイトルシーンを実行
         var domain = new TitleSceneDomain();
-        var transitioner = new TitleSceneTransitioner(domain);
-        await transitioner.Transition();
+        System.Threading.CancellationTokenSource cts = new();
+        await domain.SceneTransition(cts);
         Initialize(domain._uiLayer);
     }
 

@@ -1,5 +1,8 @@
 using UnityEngine.UIElements;
 
+/// <summary>
+/// クレジット表記シーン
+/// </summary>
 public class CreditNotationScene : SceneBase, ILayeredSceneLogic
 {
     public Button BackButton;
@@ -10,22 +13,5 @@ public class CreditNotationScene : SceneBase, ILayeredSceneLogic
     {
         BackButton = RootElement.Q<Button>("backButton");
         ViewLabel = RootElement.Q<Label>("viewLabel");
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
-    private void OnDestroy()
-    {
-        BackButton.clickable.clicked -= OnButtonClicked;
-    }
-
-    private void OnButtonClicked()
-    {
-        // TODO元のシーンに変える
-        // OR このシーンを削除
     }
 }

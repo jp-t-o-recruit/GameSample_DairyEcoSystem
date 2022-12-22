@@ -1,88 +1,7 @@
 using Cysharp.Threading.Tasks;
 using System;
-using System.Text.RegularExpressions;
-using static PlasticGui.LaunchDiffParameters;
 using Logger = MyLogger.MapBy<ScenarioState>;
 
-public class AdventureParams
-{
-
-}
-
-/// <summary>
-/// バトル結果
-/// </summary>
-public enum BattleResult
-{
-    /// <summary>
-    /// 未完了（初期値）
-    /// </summary>
-    Incomplete,
-    /// <summary>
-    /// エラー
-    /// </summary>
-    Error,
-    /// <summary>
-    /// ギブアップ
-    /// </summary>
-    Giveup,
-    /// <summary>
-    /// リトライ
-    /// </summary>
-    Retry,
-    /// <summary>
-    /// 敗北
-    /// </summary>
-    Lose,
-    /// <summary>
-    /// 引き分け
-    /// </summary>
-    Draw,
-    /// <summary>
-    /// 勝利
-    /// </summary>
-    Win,
-}
-
-public class BattleScene
-{
-    public IScenario Scenario { get; }
-    BattleScene(IScenario scenario)
-    {
-        Scenario = scenario;
-    }
-
-    private void BuildBattleScene(IScenario scenario)
-    {
-        // バトルに必要なリソースを準備する
-        // Scenarioが持っている情報をもとに敵味方やマップを用意する
-    }
-
-    /// <summary>
-    /// ギブアップ
-    /// </summary>
-    private void Giveup(){
-        // シナリオにギブアップを伝える
-    }
-
-    /// <summary>
-    /// バトル終了リザルト
-    /// </summary>
-    private void Result()
-    {
-        var f = Scenario.Params.State;
-
-        if (f == default)
-        {
-            // アドヴェンチャーを呼び出す？
-            // シーンドメインが呼び出しを管理すべきなのか？
-            // シーンに終了を伝え、結果を返す
-        }else
-        {
-            // リザルトを表示して、その後ミッション選択画面に戻る
-        }
-    }
-}
 
 /// <summary>
 /// 実行時点でのシナリオ状態
@@ -119,7 +38,11 @@ public interface IScenarioParams
     /// 実行終了後時点の次シナリオ
     /// </summary>
     IScenario Child { get; set; }
-    
+
+    bool ParentLock { get; set; }
+    bool ChildLock { get; set; }
+
+
     ScenarioState State { get; set; }
 }
 
@@ -134,6 +57,8 @@ public class DummyScenarioParams: IScenarioParams
     /// 実行終了後時点の次シナリオ
     /// </summary>
     public IScenario Child { get; set; }
+    public bool ParentLock { get; set; }
+    public bool ChildLock { get; set; }
 
     public ScenarioState State { get; set; }
     public DummyScenarioParams()
@@ -156,6 +81,7 @@ public interface IScenario
     public void OnActive();
 }
 
+// TODO シナリオビーンズをシナリオ処理毎に読み込むならこの指標要らない
 /// <summary>
 /// シナリオ結合タイプ
 /// </summary>
@@ -171,8 +97,6 @@ public enum ChinType
 /// </summary>
 public static class ScenarioContainer
 {
-    private static int _listIndex = 0;
-
     /// <summary>
     /// シナリオ実体順序
     /// </summary>
@@ -195,7 +119,7 @@ public static class ScenarioContainer
     /// <param name="scenario"></param>
     public static void SetActive(IScenario scenario, ChinType chain)
     {
-        if(null != FindAncestral((ancestor) => ancestor.Params.ID == scenario.Params.ID))
+        if(default != FindAncestral((ancestor) => ancestor.Params.ID == scenario.Params.ID))
         // 設定しようとしているシナリオが既にアクティブシナリオの祖先である（設定すると循環する）場合
         {
             Logger.Warning($"循環するシナリオをアクティブにしています。ID:{scenario.Params.ID}");
@@ -278,6 +202,7 @@ public static class ScenarioContainer
     /// <returns>一致しない場合default</returns>
     public static IScenario FindAncestral(Func<IScenario, bool> matcher)
     {
+        if (Active == default) return default;
         return AncestralControl(Active, matcher);
     }
 
@@ -296,45 +221,67 @@ public static class ScenarioContainer
         return root;
     }
 }
-public class ButtleScenario : IScenario
+
+/// <summary>
+/// そのシナリオビーンズでやりたいこと
+/// </summary>
+public enum ScenarioBeansCategory
 {
-    public IScenarioParams Params { get; set; }
-
-    public BattleResult Result { get; }
-
-    private Func<ButtleScenario, UniTask> _completedAction;
-
-    public ButtleScenario(string id,
-                          Func<ButtleScenario, UniTask> callback)
-    {
-        Params = new DummyScenarioParams()
-        {
-            ID = id
-        };
-        _completedAction = callback;
-        Result = BattleResult.Incomplete;
-    }
-
-    public void OnActive() { }
-    /// <summary>
-    /// シナリオの完了
-    /// 次シナリオを呼び出す
-    /// </summary>
-    private async UniTask Complete()
-    {
-        await _completedAction(this);
-    }
+    Default,
+    Adventure,
+    Battle,
+    Tutorial,
 }
 
-public class ScenarioBuilder
+/// <summary>
+/// シナリオビーンズのデータベースレコード
+/// </summary>
+public class ScenarioDataBase
 {
-    public static IScenario SceneBuild(SceneEnum sceneEnum, string detail)
+    public int ID;
+    public ScenarioBeansCategory Category;
+    public int CategoryID;
+}
+
+/// <summary>
+/// シナリオビーンズ
+/// シーンの通常制御を上書きするシナリオ構成する最小単位
+/// </summary>
+public class IScenarioBeans2
+{
+
+}
+public class ScenarioBuilder {
+    public bool isHoge = false;
+}
+
+
+public class ScenarioFactory
+{
+    public static IScenarioBeans2 Create(ScenarioBuilder builder)
     {
-        IScenario s = new PlayModeScenario();
-        if (sceneEnum == SceneEnum.HomeScene)
+        int scenarioId = builder.isHoge ? 10 : 12;
+        return Factory(scenarioId);
+    }
+
+
+    private static IScenarioBeans2 Factory(int scenarioId)
+    {
+        int scenarioType = scenarioId;
+        IScenarioBeans2 s = new();
+        switch(scenarioType)
         {
-            s = HomeScenarioFactory.Build(detail);
+            case 1:
+                s = TryHome(s);
+                break;
+            default:
+                break;
         }
+        return s;
+    }
+
+    private static IScenarioBeans2 TryHome(IScenarioBeans2 s)
+    {
         return s;
     }
 
@@ -353,7 +300,6 @@ public class ScenarioBuilder
                 // 引き分け時の次シナリオ
                 // 勝った時の次シナリオ
                 // 条件による次シナリオ
-                await new HomeSceneTransitioner().Transition();
             }
             else
             {

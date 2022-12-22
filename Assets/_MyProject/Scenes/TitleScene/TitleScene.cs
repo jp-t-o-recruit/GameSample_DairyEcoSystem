@@ -53,23 +53,3 @@ public class TitleScene : MonoBehaviour, ILayeredSceneLogic
         Logger.UnloadEnableLogging();
     }
 }
-
-public class TitleSceneTransitioner : LayerdSceneTransitioner<TitleSceneDomain.DomainParam>
-{
-    public TitleSceneTransitioner(ILayeredSceneDomain domain = default) : base(domain)
-    {
-        _domain = domain ?? new TitleSceneDomain();
-        SetupLayer();
-    }
-
-    private void SetupLayer()
-    {
-        _layer = new Dictionary<SceneLayer, System.Type>()
-        {
-            { SceneLayer.Logic, typeof(TitleScene) },
-            { SceneLayer.UI, typeof(TitleUIScene) },
-            //{ SceneLayer.Field, typeof(TitleFieldScene) },
-        };
-    }
-}
-

@@ -1,8 +1,12 @@
 using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using VContainer;
+
+using Logger = MyLogger.MapBy<LayeredSceneDefinition>;
 
 /// <summary>
 /// 1シーン内の階層割り当てシーン
@@ -77,7 +81,7 @@ public class LayeredSceneDefinition
 /// <summary>
 /// 特に機能を持たないが型判別のためのインターフェース
 /// </summary>
-public interface IDomainBaseParam
+public interface IDomainParamBase
 {
 }
 
@@ -89,47 +93,66 @@ public interface ITiming
     /// <summary>
     /// 開始時呼び出し
     /// </summary>
-    public UniTask Initialize();
+    public void Initialize(CancellationTokenSource cts);
 
     /// <summary>
     /// 停止時呼び出し
     /// </summary>
-    public UniTask Suspend();
+    public void Suspend(CancellationTokenSource cts);
 
     /// <summary>
     /// 再開時呼び出し
     /// </summary>
-    public UniTask Resume();
+    public void Resume(CancellationTokenSource cts);
     /// <summary>
     /// 終了時呼び出し
     /// </summary>
-    public UniTask Discard();
+    public void Discard(CancellationTokenSource cts);
 }
+/// <summary>
+/// ITimingのデリゲート
+/// </summary>
+/// <param name="cts"></param>
+public delegate void TimingEventHandler(CancellationTokenSource cts);
 
 public interface ILayeredSceneDomain: ITiming
 {
-    public IDomainBaseParam Param { get; set; }
-    public IDomainBaseParam InitialParam { get; set; }
+    public IDomainParamBase Param { get; set; }
+    public IDomainParamBase InitialParam { get; set; }
 
     public ILayeredSceneLogic LogicLayer { get; set; }
     public ILayeredSceneUI UILayer { get; set; }
     public ILayeredSceneField FieldLayer { get; set; }
+
+    public Dictionary<SceneLayer, System.Type> GetLayerMap();
+    public UniTask<LayerdSceneTransitioner> SceneTransition(CancellationTokenSource cts, Action<LayerdSceneTransitioner> transitionerEditor = default);
 }
 
+/// <summary>
+/// ドメインの基盤
+/// 
+/// 
+/// UniTaskで待つ
+/// https://baba-s.hatenablog.com/entry/2019/09/11/083000
+/// </summary>
+/// <typeparam name="TLogic"></typeparam>
+/// <typeparam name="TUI"></typeparam>
+/// <typeparam name="TField"></typeparam>
+/// <typeparam name="TParam"></typeparam>
 public abstract class DomainBase<TLogic, TUI, TField, TParam> : ILayeredSceneDomain
     where TLogic : ILayeredSceneLogic
-    where TUI    : ILayeredSceneUI
+    where TUI    : MonoBehaviour, ILayeredSceneUI
     where TField : ILayeredSceneField
-    where TParam : IDomainBaseParam
+    where TParam : IDomainParamBase, new()
 {
 
-    public IDomainBaseParam Param {
+    public IDomainParamBase Param {
         get => _param;
         set { if (value is TParam param) _param = param; }
     }
     protected TParam _param;
 
-    public IDomainBaseParam InitialParam  {
+    public IDomainParamBase InitialParam  {
         get => _initialParam;
         set { if (value is TParam param) _initialParam = param; }
     }
@@ -153,10 +176,123 @@ public abstract class DomainBase<TLogic, TUI, TField, TParam> : ILayeredSceneDom
     }
     protected TField _fieldLayer;
 
-    public virtual UniTask Initialize() { return UniTask.Delay(0); }
-    public virtual UniTask Suspend() { return UniTask.Delay(0); }
-    public virtual UniTask Resume() { return UniTask.Delay(0); }
-    public virtual UniTask Discard() { return UniTask.Delay(0); }
+    protected LayerdSceneTransitioner Transitioner;
+
+    //protected List<Button> _buttons;
+
+    protected DomainBase()
+    {
+        Param = new TParam();
+        InitialParam = new TParam();
+    }
+
+    public virtual void Initialize(CancellationTokenSource cts)
+    {
+        Logger.Debug($"{this.GetType()} Initialize");
+        //_buttons = new List<Button>();
+        //await UniTask.WaitForFixedUpdate();
+        //await UniTask.Yield();
+    }
+    public virtual void Suspend(CancellationTokenSource cts)
+    {
+        //_buttons.ForEach(b => {
+        //    b.pickingMode = PickingMode.Ignore;
+        //});
+        //await UniTask.WaitForFixedUpdate();
+        //await UniTask.Yield();
+    }
+    public virtual void Resume(CancellationTokenSource cts) {
+        //_buttons.ForEach(b => {
+        //    b.pickingMode = PickingMode.Position;
+        //});
+        //await UniTask.WaitForFixedUpdate();
+        //await UniTask.Yield();
+    }
+    public virtual void Discard(CancellationTokenSource cts) {
+        Logger.Debug($"{this.GetType()} Discard");
+        //_buttons.Clear();
+        //_buttons = null;
+        //await UniTask.Yield();
+        _logicLayer = default;
+        _uiLayer = default;
+        _fieldLayer = default;
+        Transitioner.InitializeHandler -= this.Initialize;
+        Transitioner.SuspendHandler -= this.Suspend;
+        Transitioner.ResumeHandler -= this.Resume;
+        Transitioner.DiscardHandler -= this.Discard;
+        Transitioner = default;
+        Param = default;
+        InitialParam = default;
+    }
+
+    public Dictionary<SceneLayer, System.Type> GetLayerMap()
+    {
+        return new Dictionary<SceneLayer, System.Type>() {
+            { SceneLayer.Logic, typeof(TLogic)},
+            { SceneLayer.UI, typeof(TUI)},
+            { SceneLayer.Field, typeof(TField) },
+        };
+    }
+    /// <summary>
+    /// シーン遷移実施
+    /// </summary>
+    /// <param name="cts"></param>
+    /// <param name="transitionerEditor">遷移処理編集コールバック</param>
+    /// <returns></returns>
+    public async UniTask<LayerdSceneTransitioner> SceneTransition(CancellationTokenSource cts,
+                                                                  Action<LayerdSceneTransitioner> transitionerEditor = default)
+    {
+        Transitioner = new (this.GetLayerMap());
+        Transitioner.InitializeHandler += this.Initialize;
+        Transitioner.SuspendHandler += this.Suspend;
+        Transitioner.ResumeHandler += this.Resume;
+        Transitioner.DiscardHandler += this.Discard;
+
+        if (transitionerEditor != default)
+        {
+            transitionerEditor(Transitioner);
+        }
+        await Transitioner.Transition(cts);
+        //, (list) =>
+        //{
+        //    LogicLayer = list[SceneLayer.Logic];
+        //    UILayer = list[SceneLayer.UI];
+        //    FieldLayer = list[SceneLayer.Field];
+        //});
+
+        return Transitioner;
+    }
+    // TODO 疎結合的によろしくない
+    public void SetupSceneBase()
+    {
+        _logicLayer = GetSceneBaseFromScene<TLogic>();
+        _uiLayer = GetSceneBaseFromScene<TUI>();
+        _fieldLayer = GetSceneBaseFromScene<TField>();
+    }
+
+    /// <summary>
+    /// シーンクラス（スクリプト）にパラメータをアタッチする
+    /// </summary>
+    /// <param name="scene"></param>
+    /// <returns></returns>
+    private TComponent GetSceneBaseFromScene<TComponent>()
+    {
+        Scene scene = SceneManager.GetSceneByName($"{typeof(TComponent)}");
+        TComponent component = default;
+
+        // GetRootGameObjectsで、そのシーンのルートGameObjects
+        // つまり、ヒエラルキーの最上位のオブジェクトが取得できる
+        foreach (var gameObject in scene.GetRootGameObjects())
+        {
+            component = gameObject.GetComponent<TComponent>();
+            if (component != null)
+            {
+                break;
+            }
+        }
+
+        return component;
+    }
 }
 
 
@@ -173,12 +309,12 @@ public sealed class NullDomain : DomainBase<
 {
     public class NullLayeredSceneLogic : ILayeredSceneLogic
     {}
-    public class NullLayeredSceneUI : ILayeredSceneUI
+    public class NullLayeredSceneUI : MonoBehaviour,ILayeredSceneUI
     {}
     public class NullLayeredSceneField : ILayeredSceneField
     {}
 
-    public class DomainParam : IDomainBaseParam
+    public class DomainParam : IDomainParamBase
     {}
     
     private NullDomain()

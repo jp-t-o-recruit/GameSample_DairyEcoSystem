@@ -12,12 +12,14 @@ public class CreditNotationSceneDomain : DomainBase<
     NullDomain.NullLayeredSceneField,
     CreditNotationSceneDomain.DomainParam>
 {
-    public class DomainParam : IDomainBaseParam
+    public class DomainParam : IDomainParamBase
     {
         public string ViewLabel = "CreditNotationSceneDomainスクリプトから設定！";
-        public Func<ISceneTransitioner> sceneTransitionerCollback = () =>
-        {
-            return new HomeSceneTransitioner() { NextRelation = SceneRelation.Free };
+        /// <summary>
+        /// 遷移処理オーバーロード編集
+        /// </summary>
+        public Func<ILayeredSceneDomain, CancellationTokenSource, UniTask> sceneTransitionerCollback = async (domain, cts) => {
+            await domain.SceneTransition(cts, transitioner => { transitioner.StackType = SceneStackType.PopTry; });
         };
     }
 
@@ -29,27 +31,30 @@ public class CreditNotationSceneDomain : DomainBase<
         _clientLifetimeTokenSource = new();
     }
 
-    public override async UniTask Initialize()
+    public override void Initialize(CancellationTokenSource cts)
     {
-        await base.Initialize();
+        base.Initialize(cts);
 
+        _logicLayer.BackButton.visible = true;
         _logicLayer.BackButton.clickable.clicked += OnNextSceneButtonClicked;
+        //_buttons.Add(_logicLayer.BackButton);
         // TODO
         //_logicLayer.ViewLabel.text = _initialParam.ViewLabel;
         _logicLayer.ViewLabel.text = CreditNotationSceneParamsSO.Entity.ViewLabel.ToString();
+
     }
 
-    public override async UniTask Suspend()
+    public override void Suspend(CancellationTokenSource cts)
     {
-        await base.Suspend();
+        base.Suspend(cts);
     }
-    public override async UniTask Resume()
+    public override void Resume(CancellationTokenSource cts)
     {
-        await base.Resume();
+        base.Resume(cts);
     }
-    public override async UniTask Discard()
+    public override void Discard(CancellationTokenSource cts)
     {
-        await base.Discard();
+        base.Discard(cts);
 
         _clientLifetimeTokenSource?.Cancel();
         _clientLifetimeTokenSource?.Dispose();
@@ -62,18 +67,11 @@ public class CreditNotationSceneDomain : DomainBase<
     /// </summary>
     private async void OnNextSceneButtonClicked()
     {
-        // TODO
-        // ストックされているなら親に戻る（Pop）
-        // 指定先があればそこに遷移（PushuAsync）
-        // どちらの状況でもなければデフォルトでHomeに遷移(Replace)
-
         await DomainCommonService.SceneTransition(_clientLifetimeTokenSource,
             async () => {
-                var transition = _initialParam.sceneTransitionerCollback();
-                await transition.Transition();
+                await _initialParam.sceneTransitionerCollback(new TitleSceneDomain(), _clientLifetimeTokenSource);
             },
-            async (webService, report) =>
-            {
+            async (webService, report) => {
                 await webService.PostSceneTransitionReport(report, _clientLifetimeTokenSource.Token);
             });
     }

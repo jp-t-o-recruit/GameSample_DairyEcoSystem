@@ -1,19 +1,27 @@
 using Cysharp.Threading.Tasks;
 using System;
-
+using VContainer;
+using Logger = MyLogger.MapBy<HomeScenario>;
 
 public class HomeScenarioState
 {
 
 }
-public class HomeScenario : IScenario
+/// <summary>
+/// ホームシナリオ
+/// </summary>
+public class HomeScenario : IScenario, IDisposable
 {
     public IScenarioParams Params { get; set; }
 
     private Func<HomeScenario, UniTask> _completedAction;
 
+    HomeUIScene UIScene;
+
+    System.Threading.CancellationTokenSource _cts;
     public HomeScenarioState State { get; set; }
 
+    [Inject]
     public HomeScenario(string id,
                         Func<HomeScenario, UniTask> callback,
                         HomeScenarioState state)
@@ -24,24 +32,42 @@ public class HomeScenario : IScenario
         };
         _completedAction = callback;
         State = state;
+
+        Logger.SetEnableLogging(true);
+
+        _cts = new();
     }
 
     public async void OnActive()
     {
+        Logger.Debug($"アクティブ{this.GetType()}");
         // 通常のホームシーンを実行
+
         var domain = new HomeSceneDomain();
-        var transitioner = new HomeSceneTransitioner(domain);
-        await transitioner.Transition();
-        Initialize(domain._uiLayer);
+        Logger.Debug($"TODO非同期で帰ってこない？ {this.GetType()}");
+
+        await domain.SceneTransition(_cts, (transitioner) => transitioner.StackType = SceneStackType.PushOrRetry);
+        Logger.Debug($"TODO非同期で帰って来た！ {this.GetType()}");
+        this.Initialize(domain._uiLayer).Forget();
     }
 
-    public void Initialize(HomeUIScene homeUIScene)
+    public async UniTask Initialize(HomeUIScene homeUIScene)
     {
-        homeUIScene._toTitleSceneButton.clickable.clicked += OnClicked;
+        await UniTask.WaitForEndOfFrame(homeUIScene);
+        Logger.Debug($"Initialize {this.GetType()}");
+        UIScene = homeUIScene;
+        //UIScene._toTitleSceneButton.clickable.clicked += OnClicked;
     }
 
-    public void OnClicked()
+    public void Dispose()
     {
+        //UIScene._toTitleSceneButton.clickable.clicked -= OnClicked;
+        UIScene = null;
+    }
+
+    private void OnClicked()
+    {
+        Logger.Debug("ホームシーンでタイトル遷移ボタンクリック");
         var scenario = new TitleScenario();
         ScenarioContainer.SetActive(scenario, ChinType.NotChain);
     }
@@ -54,4 +80,5 @@ public class HomeScenario : IScenario
     {
         await _completedAction(this);
     }
+
 }

@@ -45,21 +45,6 @@ public static class EnumExt
         }
     }
 }
-
-/// <summary>
-/// ルートシーン列挙
-/// 
-/// File→BuildSettings での登録と同様のものを記載
-/// </summary>
-public enum SceneEnum
-{
-    GameManagersScene, // シーン間をコントロールしたいシーンより上概念のインスタンスを常駐させる
-    TitleScene,
-    HomeScene,
-    TutorialScene,
-    CreditNotationScene,
-}
-
 /// <summary>
 /// 階層構造シーン関連付け定義
 /// </summary>
@@ -71,9 +56,10 @@ public class SceneRelationDefinition : SingletonBase<SceneRelationDefinition>
     {
         // TODO クラス取得はコールバックにする
         SceneDefinition = new List<SceneTypes>() {
-            new (SceneEnum.TitleScene,() => new TitleSceneTransitioner(), () => new TitleSceneDomain()),
-            new (SceneEnum.HomeScene,() => new HomeSceneTransitioner(), () => new HomeSceneDomain()),
-            new (SceneEnum.CreditNotationScene,() => new CreditNotationSceneTransitioner(), () => NullDomain.Create())
+            new (SceneEnum.TitleScene,() => new LayerdSceneTransitioner(new TitleSceneDomain().GetLayerMap()), () => new TitleSceneDomain()),
+            new (SceneEnum.HomeScene,() => new LayerdSceneTransitioner(new HomeSceneDomain().GetLayerMap()), () => new HomeSceneDomain()),
+            new (SceneEnum.BattleScene,() => new LayerdSceneTransitioner(new BattleSceneDomain().GetLayerMap()), () => new BattleSceneDomain()),
+            new (SceneEnum.CreditNotationScene,() => new LayerdSceneTransitioner(new CreditNotationSceneDomain().GetLayerMap()), () => NullDomain.Create())
         }.ToDictionary(n => n.SceneEnum, n => n);
     }
 }
@@ -105,4 +91,20 @@ public class SceneTypes
         return _callbackT2();
     }
 
+}
+
+
+/// <summary>
+/// ルートシーン列挙
+/// 
+/// File→BuildSettings での登録と同様のものを記載
+/// </summary>
+public enum SceneEnum
+{
+    GameManagersScene, // シーン間をコントロールしたいシーンより上概念のインスタンスを常駐させる
+    TitleScene,
+    HomeScene,
+    TutorialScene,
+    CreditNotationScene,
+    BattleScene,
 }

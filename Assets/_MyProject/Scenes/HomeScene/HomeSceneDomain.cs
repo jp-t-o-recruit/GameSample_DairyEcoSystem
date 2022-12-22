@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using System;
 using System.Threading;
 using VContainer;
 
@@ -13,90 +14,88 @@ public class HomeSceneDomain : DomainBase<
     HomeFieldScene,
     HomeSceneDomain.DomainParam>
 {
-    public class DomainParam : IDomainBaseParam
+    public class DomainParam : IDomainParamBase
     {
         public string ViewLabel = "HomeSceneDomainスクリプトから設定！";
     }
 
     // IDisposableと引っ掛けて、Client自体がDisposeされたら実行中のリクエストも終了させるようにする
-    private CancellationTokenSource _clientLifetimeTokenSource;
+    private CancellationTokenSource _cts;
 
     [Inject]
     //public HomeSceneDomain(CancellationTokenSource clientLifetimeTokenSource)
     //                        DomainParam domainParam)
     public HomeSceneDomain()
     {
-        _clientLifetimeTokenSource = new();
+        _cts = new();
 
-        Logger.SetEnableLogging(false);
+        Logger.SetEnableLogging(true);
     }
 
-    public override async UniTask Initialize()
+    public override void Initialize(CancellationTokenSource cts)
     {
-        await base.Initialize();
-        Logger.Debug($"_viewLabel: {_uiLayer._viewLabel != null },_initialParam: {_initialParam != null}, ViewLabel: {_initialParam.ViewLabel != null}");
+        base.Initialize(cts);
+        // TODO waitするのは設計がおかしい
+        //Logger.Debug($"Initialize {this.GetType()}");
+        //await UniTask.Delay(TimeSpan.FromMilliseconds(1), cancellationToken: cts.Token);
+        //await UniTask.WaitForFixedUpdate();
+        Logger.Debug($"_viewLabel: {_uiLayer._viewLabel != null},_initialParam: {_initialParam != null}, ViewLabel: {_initialParam.ViewLabel != null}");
         _uiLayer._viewLabel.text = _initialParam.ViewLabel;
-        _uiLayer._nextSceneButton.clickable.clicked += OnNextSceneButtonClicked;
+        _uiLayer._nextSceneButton.clickable.clicked += ToBattleScene;
         // TODO
         //_uiLayer._toSaveDataBuilderSceneButton.clickable.clicked += OnButtonClicked;
         _uiLayer._toTitleSceneButton.clickable.clicked += OnTitleSceneButtonClicked;
     }
 
-    public override async UniTask Suspend()
+    public override void Suspend(CancellationTokenSource cts)
     {
-        await base.Suspend();
+        // TODO baseを呼ぶと永遠に帰ってこない
+        base.Suspend(cts);
+        Logger.Debug($"Suspend {this.GetType()}");
     }
-    public override async UniTask Resume()
+    public override void Resume(CancellationTokenSource cts)
     {
-        await base.Resume();
+        base.Resume(cts);
+        Logger.Debug($"Resume {this.GetType()}");
     }
-    public override async UniTask Discard()
+    public override void Discard(CancellationTokenSource cts)
     {
-        await base.Discard();
+        base.Discard(cts);
+        Logger.Debug($"Discard {this.GetType()}");
 
-        _clientLifetimeTokenSource?.Cancel();
-        _clientLifetimeTokenSource?.Dispose();
-        _clientLifetimeTokenSource = null;
-        _uiLayer._nextSceneButton.clickable.clicked -= OnNextSceneButtonClicked;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+        _uiLayer._nextSceneButton.clickable.clicked -= ToBattleScene;
         // TODO
         //_uiLayer._toSaveDataBuilderSceneButton.clickable.clicked -= OnButtonClicked;
         _uiLayer._toTitleSceneButton.clickable.clicked -= OnTitleSceneButtonClicked;
-        Logger.SetEnableLogging(false);
+        Logger.UnloadEnableLogging();
+    }
+
+    private async void ToBattleScene()
+    {
+        Logger.SetEnableLogging(true);
+        Logger.Debug("バトルボタン押下");
+        await new BattleSceneDomain().SceneTransition(_cts);
     }
 
     /// <summary>
     /// クレジット表記画面へ遷移ボタン押下
     /// </summary>
-    private async void OnNextSceneButtonClicked()
+    private async void OnCreditNotationClicked()
     {
-        await DomainCommonService.SceneTransition(_clientLifetimeTokenSource,
+        await DomainCommonService.SceneTransition(_cts,
             // ホーム画面に戻るように明示的にシーンを連携する
             async () => {
-                var param = new CreditNotationSceneDomain.DomainParam() {
-                    sceneTransitionerCollback = () => new HomeSceneTransitioner()
-                    {
-                        // TODO
-                        // 表示中シーンが前（親）の状態として次に遷移するシーンの条件として参照する
-                        PrevRelation = SceneRelation.HookLink,
-                        // 表示中シーンが自分の状態として次に遷移するシーンの条件として参照する
-                        // リンクする
-                        SelfRelation = SceneRelation.HookLink,
-                        // 表示中シーンが次に遷移するシーンの条件として参照する
-                        // リンクする
-                        NextRelation = SceneRelation.None,
-                    }
-                };
-                var transitioner = new CreditNotationSceneTransitioner() {
-                    Parameter = param,
-                    PrevRelation = SceneRelation.StartLink,
-                    SelfRelation = SceneRelation.HookLink,
-                    NextRelation = SceneRelation.HookLink,
-                };
-                await transitioner.Transition();
+                var domain = new CreditNotationSceneDomain();
+                await domain.SceneTransition(_cts, transitioner => {
+                    transitioner.StackType = SceneStackType.Push;
+                });
             },
             // 通信処理
             async (webService, report) => {
-                await webService.PostSceneTransitionReport(report, _clientLifetimeTokenSource.Token);
+                await webService.PostSceneTransitionReport(report, _cts.Token);
             });
     }
 
@@ -105,13 +104,14 @@ public class HomeSceneDomain : DomainBase<
     /// </summary>
     private async void OnTitleSceneButtonClicked()
     {
-        await DomainCommonService.SceneTransition(_clientLifetimeTokenSource,
+        Logger.SetEnableLogging(true);
+        Logger.Debug($"{this} タイトルボタン押下");
+        await DomainCommonService.SceneTransition(_cts,
             async () => {
-                var transitioner = new TitleSceneTransitioner();
-                await transitioner.Transition();
+                await new TitleSceneDomain().SceneTransition(_cts);
             },
             async (webService, report) => {
-                await webService.PostSceneTransitionReport(report, _clientLifetimeTokenSource.Token);
+                await webService.PostSceneTransitionReport(report, _cts.Token);
             });
     }
 }

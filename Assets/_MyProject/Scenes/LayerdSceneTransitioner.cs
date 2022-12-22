@@ -1,64 +1,110 @@
 using Cysharp.Threading.Tasks;
+using PlasticGui.Configuration.CloudEdition.Welcome;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using Unity.VisualScripting.YamlDotNet.Core;
 using UnityEngine;
-
 using UnityEngine.SceneManagement;
-
-
+using VContainer;
 using Logger = MyLogger.MapBy<ISceneTransitioner>;
 
 /// <summary>
-/// 
 /// 採用したシーン設計の基本構造
 /// https://gamebiz.jp/news/218949
 /// </summary>
 
-public enum SceneRelation
-{
-    /// <summary>
-    /// 無し
-    /// </summary>
-    None,
-    /// <summary>
-    /// 決まっていない
-    /// </summary>
-    Free,
-    /// <summary>
-    /// 破棄できない連結
-    /// </summary>
-    ChainLink,
-    /// <summary>
-    /// 破棄できる連結
-    /// </summary>
-    HookLink,
-    /// <summary>
-    /// 連結の起点
-    /// </summary>
-    StartLink,
 
-
-}
+/// <summary>
+/// シーン遷移情報
+/// </summary>
 public interface ISceneTransitioner : ITiming
 {
-    public SceneRelation PrevRelation { get; set; }
-    public SceneRelation SelfRelation { get; set; }
-    public SceneRelation NextRelation { get; set; }
-    public abstract UniTask<List<Scene>> LoadScenes();
-    public abstract UniTask UnLoadScenes();
-    public UniTask Transition();
+    /// <summary>
+    /// 遷移でのシーンスタックタイプ
+    /// </summary>
+    public SceneStackType StackType { get; set; }
+
+    /// <summary>
+    /// シーン実体ロード
+    /// </summary>
+    /// <returns></returns>
+    public UniTask<List<Scene>> LoadScenes(CancellationTokenSource cts);
+    /// <summary>
+    /// シーン実体アンロード
+    /// </summary>
+    /// <returns></returns>
+    public UniTask UnLoadScenes(CancellationTokenSource cts);
+    /// <summary>
+    /// このシーン遷移情報に基づきシーン遷移実施
+    /// </summary>
+    /// <returns></returns>
+    public UniTask Transition(CancellationTokenSource cts);
+    /// <summary>
+    /// シーンの名前取得
+    /// </summary>
+    /// <returns></returns>
     public string GetSceneName();
 }
 
-
-public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where TParam : IDomainBaseParam, new()
+public class LayerList
 {
-    public TParam Parameter { get; set; }
-    internal protected Dictionary<SceneLayer, System.Type> _layer;
+    private Dictionary<SceneLayer, string> _layer;
 
-    public SceneRelation PrevRelation { get; set; }
-    public SceneRelation SelfRelation { get; set; }
-    public SceneRelation NextRelation { get; set; }
+    public LayerList()
+    {
+        _layer = new Dictionary<SceneLayer, string>();
+    }
+
+    public LayerList TryAdd<TType>(SceneLayer layer)
+    {
+        var type = typeof(TType);
+
+        var errorMatch = new Dictionary<SceneLayer, Type>(){
+            { SceneLayer.Logic, typeof(ILayeredSceneLogic)},
+            { SceneLayer.UI, typeof(ILayeredSceneUI)},
+            { SceneLayer.Field, typeof(ILayeredSceneField)},
+        }.FirstOrDefault(pair => {
+            return pair.Key == layer && !type.IsSubclassOf(pair.Value);
+        });
+
+        if (errorMatch.Value != default)
+        {
+            throw new ArgumentException($"{type.Name}は指定されたレイヤーとしての条件:{errorMatch.Value.Name}を継承していません");
+        }
+        else
+        {
+            _layer.Add(layer, type.Name);
+        }
+            
+        return this;
+    }
+}
+
+
+public class LayerdSceneTransitioner : ISceneTransitioner
+{
+    public Dictionary<SceneLayer, System.Type> _layer;
+    public SceneStackType StackType { get; set; }
+
+    /// <summary>
+    /// 初期化時ハンドラ
+    /// </summary>
+    public event TimingEventHandler InitializeHandler;
+    /// <summary>
+    /// 一時停止時ハンドラ
+    /// </summary>
+    public event TimingEventHandler SuspendHandler;
+    /// <summary>
+    /// 再開時ハンドラ
+    /// </summary>
+    public event TimingEventHandler ResumeHandler;
+    /// <summary>
+    /// 終了時ハンドラ
+    /// </summary>
+    public event TimingEventHandler DiscardHandler;
+
 
     /// <summary>
     /// TODO　このシーンまとまりが複数回ロードされても良いか
@@ -70,51 +116,76 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
     /// </summary>
     //public bool CanMultipleLoad = false;
 
-    protected ILayeredSceneDomain _domain;
+    //protected ILayeredSceneDomain _domain;
 
-    protected LayerdSceneTransitioner(ILayeredSceneDomain domain = default)
+    //[Inject]
+    //public LayerdSceneTransitioner(ILayeredSceneDomain domain = default)
+    //{
+    //    _domain = domain ?? NullDomain.Create();
+    //    SetupLayer();
+    //}
+
+    //public void SetupLayer()
+    //{
+    //    _layer = _domain.GetLayerMap();
+    //}
+    [Inject]
+    public LayerdSceneTransitioner(Dictionary<SceneLayer, System.Type> layer = default)
     {
-        _domain = domain ?? NullDomain.Create();
+        _layer = layer ?? new Dictionary<SceneLayer, System.Type>();
+        StackType = SceneStackType.Replace;
     }
 
-    public async virtual UniTask<List<Scene>> LoadScenes()
+    public async virtual UniTask<List<Scene>> LoadScenes(CancellationTokenSource cts)
     {
         List<Scene> scenes = new();
+        Logger.SetEnableLogging(true);
+        SceneBase waitBySceneBase = default;
 
-        await LoadScene<ILayeredSceneLogic>(SceneLayer.Logic, (scene, sceneBase) => {
+        await LoadScene<ILayeredSceneLogic>(cts, SceneLayer.Logic, (scene, sceneBase) =>
+        {
             scenes.Add(scene);
-            _domain.LogicLayer = sceneBase;
+            //    _domain.LogicLayer = sceneBase;
         });
 
-        await LoadScene<ILayeredSceneUI>(SceneLayer.UI, (UIScene, sceneBase) => {
+        await LoadScene<ILayeredSceneUI>(cts, SceneLayer.UI, (UIScene, sceneBase) => {
             scenes.Add(UIScene);
-            _domain.UILayer = sceneBase;
+            //    _domain.UILayer = sceneBase;
+            waitBySceneBase = (SceneBase)sceneBase;
         });
 
-        await LoadScene<ILayeredSceneField>(SceneLayer.Field, (scene, sceneBase) => {
+        await LoadScene<ILayeredSceneField>(cts, SceneLayer.Field, (scene, sceneBase) => {
             scenes.Add(scene);
-            _domain.FieldLayer = sceneBase;
+            //_domain.FieldLayer = sceneBase;
         });
 
-        PresentParameter();
+        //TODOここでSceneBaseとDomainを紐づけ無いといけない？
+        LayerList hoge = new LayerList();
+        hoge.TryAdd<ILayeredSceneLogic>(SceneLayer.Logic);
+        hoge.TryAdd<ILayeredSceneUI>(SceneLayer.UI);
+        hoge.TryAdd<ILayeredSceneField>(SceneLayer.Field);
+
+        // プレイヤーループを挟まないとアタッチがされず参照不全なので待つ
+        await UniTask.WaitForEndOfFrame(waitBySceneBase);
+        Initialize(cts);
 
         return scenes;
     }
 
-    protected async UniTask<Scene> LoadSceneByName(string sceneName)
+    protected async UniTask<Scene> LoadSceneByName(string sceneName, CancellationTokenSource cts)
     {
         Scene scene = SceneManager.GetSceneByName(sceneName);
         Logger.Debug($"LoadSceneByName {sceneName} isLoaded:{scene.isLoaded},isDirty:{scene.isDirty},IsValid:{scene.IsValid()}");
-        if (!scene.isLoaded)
+        if (!scene.IsValid())
         {
             Logger.Debug($"LoadSceneByName {sceneName} 読み込み開始");
-            await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive).WithCancellation(cts.Token);
             scene = SceneManager.GetSceneByName(sceneName);
-            Logger.Debug($"LoadSceneByName {sceneName} 読み込み終了" + scene.isLoaded);
+            Logger.Debug($"LoadSceneByName {sceneName} 読み込み終了? : " + scene.isLoaded);
         }
         return scene;
     }
-    private async UniTask LoadScene<TComponent>(SceneLayer layer, Action<Scene, TComponent> callBack)
+    private async UniTask LoadScene<TComponent>(CancellationTokenSource cts,SceneLayer layer, Action<Scene, TComponent> callBack)
     {
         if (!_layer.ContainsKey(layer))
         {
@@ -127,26 +198,26 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
             return;
         }
 
-        Scene scene = await LoadSceneByName(sceneName);
-        if (scene != null && scene.IsValid())
+        Scene scene = await LoadSceneByName(sceneName, cts);
+        if (scene.IsValid())
         {
             callBack(scene,
                      GetSceneBaseFromScene<TComponent>(scene));
         }
     }
-    public async virtual UniTask UnLoadScenes()
+    public async virtual UniTask UnLoadScenes(CancellationTokenSource cts)
     {
         foreach (System.Type types in _layer.Values)
         {
-            await UnLoadSceneByName(types.ToString());
+            await UnLoadSceneByName(types.ToString(), cts);
         }
     }
 
-    private async UniTask UnLoadSceneByName(string sceneName)
+    private async UniTask UnLoadSceneByName(string sceneName, CancellationTokenSource cts)
     {
         Logger.Debug("アンロード開始:" + sceneName);
-        await SceneManager.UnloadSceneAsync(sceneName);
-        await Resources.UnloadUnusedAssets().ToUniTask();
+        await SceneManager.UnloadSceneAsync(sceneName).WithCancellation(cts.Token);
+        await Resources.UnloadUnusedAssets().WithCancellation(cts.Token);
         Logger.Debug("アンロード終了:" + sceneName);
     }
 
@@ -155,7 +226,7 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
     /// </summary>
     /// <param name="scene"></param>
     /// <returns></returns>
-    protected TComponent GetSceneBaseFromScene<TComponent>(Scene scene)
+    public TComponent GetSceneBaseFromScene<TComponent>(Scene scene)
     {
         Logger.Debug("GetSceneBase取得開始:" + scene.name);
         TComponent component = default;
@@ -175,9 +246,29 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
 
         return component;
     }
-    public async UniTask Transition()
+    public async UniTask Transition(CancellationTokenSource cts)
     {
-        await ExSceneManager.Instance.Transition(this);
+        await ExSceneManager.Instance.Transition(this, cts);
+
+        // TODO
+        //if (callback != default)
+        //{
+        //    var logic = GetSceneBaseFromScene<ILayeredSceneLogic>(_layer[SceneLayer.Logic].ToString());
+        //    var ui = GetSceneBaseFromScene<ILayeredSceneUI>(_layer[SceneLayer.UI].ToString());
+        //    var field = GetSceneBaseFromScene<ILayeredSceneField>(_layer[SceneLayer.Field].ToString());
+        //    var list = new Dictionary<SceneLayer, ILayeredScene>(){
+        //        { SceneLayer.Logic, logic },
+        //        { SceneLayer.UI, ui },
+        //        { SceneLayer.Field, field },
+        //    };
+        //    callback(list);
+        //}
+    }
+
+    private TComponent GetSceneBaseFromScene<TComponent>(string sceneName)
+    {
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        return GetSceneBaseFromScene<TComponent>(scene);
     }
 
     public string GetSceneName()
@@ -189,54 +280,45 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
     /// <summary>
     /// 開始時呼び出し
     /// </summary>
-    public async UniTask Initialize()
+    public void Initialize(CancellationTokenSource cts)
     {
-        await LoadScene<ILayeredSceneLogic>(SceneLayer.Logic, (scene, sceneBase) => {
-            _domain.LogicLayer = sceneBase;
-        });
-        await LoadScene<ILayeredSceneUI>(SceneLayer.UI, (scene, sceneBase) => {
-            _domain.UILayer = sceneBase;
-        });
-        await LoadScene<ILayeredSceneField>(SceneLayer.Field, (scene, sceneBase) => {
-            _domain.FieldLayer = sceneBase;
-        });
-
-        PresentParameter();
-
-        await _domain.Initialize();
+        if (!cts.IsCancellationRequested && InitializeHandler != null)
+        {
+            InitializeHandler(cts);
+        }
+        // TODO ロード必要？
+        //await LoadScenes();
     }
     /// <summary>
     /// 停止時呼び出し
     /// </summary>
-    public async UniTask Suspend()
+    public void Suspend(CancellationTokenSource cts)
     {
-        await _domain.Suspend();
+        if (!cts.IsCancellationRequested && ResumeHandler != null)
+        {
+            SuspendHandler(cts);
+        }
     }
     /// <summary>
     /// 再開時呼び出し
     /// </summary>
-    public async UniTask Resume()
+    public void Resume(CancellationTokenSource cts)
     {
-        await _domain.Resume();
+        if (!cts.IsCancellationRequested && ResumeHandler != null)
+        {
+            ResumeHandler(cts);
+        }
     }
     /// <summary>
     /// 終了時呼び出し
     /// </summary>
-    public async UniTask Discard()
+    public void Discard(CancellationTokenSource cts)
     {
-        await _domain.Discard();
-    }
-    private void PresentParameter()
-    {
-        _domain.InitialParam = Parameter ?? new TParam();
-        _domain.Param = Parameter ?? new TParam();
-    }
-
-    public void SetSceneRelation(SceneRelation next = SceneRelation.Free,
-                                 SceneRelation prev = SceneRelation.Free)
-    {
-        NextRelation = next;
-        PrevRelation = prev;
+        if (!cts.IsCancellationRequested && DiscardHandler != null)
+        {
+           DiscardHandler(cts);
+        } 
+        //await _domain.Discard();
     }
 }
 
@@ -244,6 +326,6 @@ public abstract class LayerdSceneTransitioner<TParam> : ISceneTransitioner where
 /// 階層構造を持たないシーン（ただしLogic層として判定する）
 /// </summary>
 /// <typeparam name="TParam"></typeparam>
-public abstract class SoloLayerSceneTransitioner<TParam> : LayerdSceneTransitioner<TParam> where TParam : IDomainBaseParam, new()
+public abstract class SoloLayerSceneTransitioner : LayerdSceneTransitioner
 {
 }

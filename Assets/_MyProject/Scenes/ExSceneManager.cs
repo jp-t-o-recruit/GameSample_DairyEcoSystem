@@ -2,11 +2,30 @@ using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 using Logger = MyLogger.MapBy<ExSceneManager>;
 
+/// <summary>
+/// 遷移でのシーンスタックタイプ
+/// </summary>
+public enum SceneStackType
+{
+    /// <summary>
+    /// 指定シーンのプッシュまたは、現在シーンが指定シーンで不足している部分をロードする
+    /// </summary>
+    PushOrRetry,
+    Push,
+    Replace,
+    ReplaceAll,
+    /// <summary>
+    /// "現在シーン"をPopする、ただしフェールセーフとして遷移先の指定シーンで遷移呼び出し
+    /// </summary>
+    PopTry,
+    //Pop,
+}
 
 /// <summary>
 /// 自作シーンマネージャー
@@ -37,130 +56,147 @@ public class ExSceneManager : SingletonBase<ExSceneManager>
         _transitioners = new Stack<ISceneTransitioner>();
         Logger.SetEnableLogging(false);
         Logger.Debug("ExSceneManager イニシャライズ！");
-
-        //Scene scene = SceneManager.GetActiveScene();
-        //Logger.Debug($"ExSceneManager シーン： {null != scene}, シーン数:{SceneManager.sceneCount}");
     }
 
 
-    async UniTask UnloadSceneAsync(ISceneTransitioner transition)
+    async UniTask UnloadSceneAsync(ISceneTransitioner transition, CancellationTokenSource cts)
     {
-        await transition.Discard();
-        await transition.UnLoadScenes();
+        transition.Discard(cts);
+        await transition.UnLoadScenes(cts);
     }
 
-    public async UniTask PushOrRetry(SceneEnum sceneEnum)
+    async UniTask PushOrRetry(ISceneTransitioner transitioner, CancellationTokenSource cts)
     {
-        string sceneName = Enum.GetName(typeof(SceneEnum), sceneEnum);
         // TODO 動作確認中ログ
         Logger.Debug("Retry:--------------------------------------");
         Logger.Debug("Retry Count:" + _transitioners.Count);
-        Logger.Debug("Retry class is:" + sceneName);
-        if (_transitioners.Count > 0)
-        {
-            Logger.Debug("Retry Last______:" + _transitioners.Last().GetType());
-            Logger.Debug("Retry bool______:" + (_transitioners.Last().GetType().Name == sceneName));
-        }
+        Logger.Debug("Retry class is:" + transitioner.GetSceneName());
 
-        if (_transitioners.Count > 0 && _transitioners.Last().GetType().Name == sceneName)
+        if (_transitioners.Count > 0 && _transitioners.Last().GetSceneName() == transitioner.GetSceneName())
         {
-            ISceneTransitioner transition = SceneRelationService.GetSceneTransitionerByEnum(sceneEnum);
-            var scenes = await transition.LoadScenes();
+            var scenes = await transitioner.LoadScenes(cts);
             Scene scene = scenes.First();
             Logger.Debug("Retry ロード後 トップシーン:" + scene.name);
             SceneManager.SetActiveScene(scene);
-
-            await transition.Initialize();
         }
         else
         {
-            ISceneTransitioner transition = SceneRelationService.GetSceneTransitionerByEnum(sceneEnum);
-            await Push(transition);
+            await Push(transitioner, cts);
         }
     }
 
-    public async UniTask PushAsync(ISceneTransitioner transition)
+    /// <summary>
+    /// 外からPushとして呼び出されるPush処理
+    /// </summary>
+    /// <param name="transition"></param>
+    /// <param name="cts"></param>
+    /// <returns></returns>
+    async UniTask PushGlobal(ISceneTransitioner transition, CancellationTokenSource cts)
     {
-        Logger.Debug("PushAsync ラストは？" + _transitioners.Count);
-        var lastTrantion = _transitioners.Last();
-        await lastTrantion.Suspend();
-
-        await Push(transition);
+        if (_transitioners.Count > 0)
+        {
+            var lastTrantion = _transitioners.Last();
+            Logger.Debug("PushGlobal suspend実行 :" + lastTrantion.GetSceneName());
+            lastTrantion.Suspend(cts);
+        }
+        Logger.Debug("PushGlobal push開始" + transition.GetSceneName());
+        await Push(transition, cts);
     }
 
-    private async UniTask Push(ISceneTransitioner transition)
+    /// <summary>
+    /// 内部的にPushとして呼び出すPush処理
+    /// </summary>
+    /// <param name="transition"></param>
+    /// <param name="cts"></param>
+    /// <returns></returns>
+    private async UniTask Push(ISceneTransitioner transition, CancellationTokenSource cts)
     {
         _transitioners.Push(transition);
-        Logger.SetEnableLogging(true);
         Logger.Debug("Push transition：" + transition.GetType());
-        var scenes = await transition.LoadScenes();
+        var scenes = await transition.LoadScenes(cts);
         Scene scene = scenes.First();
         Logger.Debug("Push シーンロードした：" + scene.name);
         SceneManager.SetActiveScene(scene);
-
-        await transition.Initialize();
     }
 
-    internal async UniTask Replace(ISceneTransitioner transition)
+    async UniTask Replace(ISceneTransitioner transition, CancellationTokenSource cts)
     {
-        var removeTransition = _transitioners.Pop();
+        var removeTransition = _transitioners.Count > 0 ? _transitioners.Pop() : default;
 
         Logger.Debug("Replace スタック抜き");
         // 新たなシーンをアクティブにする
-        await Push(transition);
+        await Push(transition, cts);
         Logger.Debug("Replace アンロード前");
-        // アクティブなシーンがある状態で以前のシーンアンロード
-        await UnloadSceneAsync(removeTransition);
+        // シーン数0が発生しないようアクティブなシーンがある状態で以前のシーンアンロード
+        if (removeTransition != default)
+        {
+            await UnloadSceneAsync(removeTransition, cts);
+        }
     }
 
-    internal async UniTask ReplaceAll(ISceneTransitioner transition)
+    async UniTask ReplaceAll(ISceneTransitioner transition, CancellationTokenSource cts)
     {
         while(_transitioners.Count > 0)
         {
-            var unloadTransition = _transitioners.Pop();
-            await UnloadSceneAsync(unloadTransition);
+            await UnloadSceneAsync(_transitioners.Pop(), cts);
         }
 
-        await Push(transition);
+        await Push(transition, cts);
+    }
+    /// <summary>
+    /// アクティブシーンをPop、出来ない場合フェールセーフとして指定シーンにReplace
+    /// </summary>
+    async UniTask TryPopDefaultReplace(ISceneTransitioner transition, CancellationTokenSource cts)
+    {
+        if (_transitioners.Count > 1) {
+            // Pop可能→つまり戻るシーンがある→スタックが2以上なら
+            await Pop(cts);
+        }
+        else
+        {
+            Logger.Warning($"シーンをPopするつもりが出来なかった。シーンStack数：{_transitioners.Count}, 最上シーン名：{_transitioners.Last()?.GetSceneName()}");
+            await Replace(transition, cts);
+        }
     }
 
     /// <summary>
     /// アクティブシーンをPop
     /// </summary>
-    internal async UniTask Pop()
+    async UniTask Pop(CancellationTokenSource cts)
     {
         // スタック最後を削除
         var unloadTransition = _transitioners.Pop();
-        await UnloadSceneAsync(unloadTransition);
+        await UnloadSceneAsync(unloadTransition, cts);
         
         var lastTrantion = _transitioners.Last();
         SceneActivateFromTransition(lastTrantion);
-        await lastTrantion.Resume();
+        lastTrantion.Resume(cts);
     }
 
-    public async UniTask Transition(ISceneTransitioner transition)
+    public async UniTask Transition(ISceneTransitioner transition, CancellationTokenSource cts)
     {
-        switch (transition.NextRelation)
+        switch (transition.StackType)
         {
-            case SceneRelation.Free:
-                if (new List<SceneRelation>(){ SceneRelation.StartLink }.Contains(transition.PrevRelation) )
-                {
-                    await ReplaceAll(transition);
-                } else
-                {
-                    await Replace(transition);
-                }
+            case SceneStackType.PushOrRetry:
+                await PushOrRetry(transition, cts);
                 break;
-            case SceneRelation.None:
-                await Pop();
+            case SceneStackType.Push:
+                await PushGlobal(transition, cts);
                 break;
-            case SceneRelation.ChainLink:
-            case SceneRelation.StartLink:
-            case SceneRelation.HookLink:
-                await PushAsync(transition);
+            case SceneStackType.Replace:
+                await Replace(transition, cts);
                 break;
+            case SceneStackType.ReplaceAll:
+                await ReplaceAll(transition, cts);
+                break;
+            case SceneStackType.PopTry:
+                await TryPopDefaultReplace(transition, cts);
+                break;
+            //case SceneStackType.Pop:
+            //    await Pop(cts);
+            //    break;
             default:
-                throw new ArgumentException($"シーン遷移方法判定中に例外が発生しました。{transition.NextRelation} is not {typeof(SceneRelation).Name}.");
+                throw new ArgumentException($"シーン遷移方法判定中に例外が発生しました。{transition.StackType} is not {typeof(SceneStackType).Name}.");
         }        
     }
 
@@ -286,8 +322,10 @@ public class GameManagersSceneAutoLoader
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void InitializeOnLoad()
     {
-        ReplenishLayeredSceneOnPlayMode();
+        //ReplenishLayeredSceneOnPlayMode();
         LoadGameManagersScene();
+
+        ScenarioContainer.SetActive(new PlayModeScenario(), ChinType.NotChain);
 
         //ScenarioContainer.SetActive(new PlayModeScenario(), ChinType.NotChain);
 
@@ -296,34 +334,27 @@ public class GameManagersSceneAutoLoader
         // その時はシングルトン実装をやめる
         // CreateManagerInstance();
     }
-    private static void CreateScenario(SceneEnum sceneEnum)
-    {
-        // TODO
-        //var hoge = new HomeScenario();
-        //var sev = new TitleScenario();
-    }
 
     /// <summary>
     /// playmode起動でシーン階層がHierarchyに足りてないなら補充する
     /// </summary>
-    private async static void ReplenishLayeredSceneOnPlayMode()
-    {
-        Scene scene = SceneManager.GetActiveScene();
-        if (scene == default)
-        {
-            return;
-        }
+    //private async static void ReplenishLayeredSceneOnPlayMode(CancellationTokenSource cts)
+    //{
+    //    Scene scene = SceneManager.GetActiveScene();
+    //    if (scene == default)
+    //    {
+    //        return;
+    //    }
 
-        if (EnumExt.TryParseToEnum(scene.name, out SceneEnum sceneEnum))
-        {
-            await ExSceneManager.Instance.PushOrRetry(sceneEnum);
-            CreateScenario(sceneEnum);
-        }
-        else
-        {
-            throw new FormatException($"シーン名変換中に例外が発生しました。{scene.name} is not SceneEnum.");
-        }
-    }
+    //    if (EnumExt.TryParseToEnum(scene.name, out SceneEnum sceneEnum))
+    //    {
+    //        await ExSceneManager.Instance.PushOrRetry(sceneEnum,cts);
+    //    }
+    //    else
+    //    {
+    //        throw new FormatException($"シーン名変換中に例外が発生しました。{scene.name} is not SceneEnum.");
+    //    }
+    //}
 
     /// <summary>
     /// 常駐させるGameManagersSceneを起動する

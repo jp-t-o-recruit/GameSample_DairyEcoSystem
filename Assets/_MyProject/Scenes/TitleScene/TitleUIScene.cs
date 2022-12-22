@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -16,13 +15,9 @@ using LocalLogger = MyLogger.MapBy<TitleUIScene>;
 /// </summary>
 public class TitleUIScene : SceneBase, ILayeredSceneUI
 {
-    public class CreateParameter
-    {
-        public string ViewLabel = "TitleUISceneデフォルトのラベル";
-    }
-
     public Button _nextSceneButton;
-    Label _viewLabel;
+    public Button _creditNotationButton;
+    public Label _viewLabel;
 
     [Inject]
     public void Construct()
@@ -57,36 +52,19 @@ public class TitleUIScene : SceneBase, ILayeredSceneUI
     void Start()
     {
         _nextSceneButton = RootElement.Q<Button>("nextSceneButton");
+        _creditNotationButton = RootElement.Q<Button>("toCreditButton");
         _viewLabel = RootElement.Q<Label>("titleSceneLabel");
-
-        _nextSceneButton.clickable.clicked += OnButtonClicked;
-        _viewLabel.text = new TitleUIScene.CreateParameter().ViewLabel;
     }
 
     // Update is called once per frame
     void Update()
     {
         _viewLabel.text = TitleSceneParamsSO.Entity.ViewLabel.ToString();
-        _nextSceneButton.text = $"title: {TimeSpan.FromSeconds(DateTime.Now.Second).TotalSeconds % 60}";
+        //_nextSceneButton.text = $"title: {TimeSpan.FromSeconds(DateTime.Now.Second).TotalSeconds % 60}";
     }
 
     private void OnDestroy()
     {
-        _nextSceneButton.clickable.clicked -= OnButtonClicked;
         LocalLogger.UnloadEnableLogging();
-    }
-
-    void OnButtonClicked()
-    {
-        if (IsInputLock) return;
-        IsInputLock = true;
-
-        _viewLabel.text = "TitleUISceneボタンから設定！";
-        _nextSceneButton.pickingMode = PickingMode.Ignore;
-        LocalLogger.SetEnableLogging(false);
-        LocalLogger.Debug("タイトルでボタン押下");
-
-        _nextSceneButton.pickingMode = PickingMode.Position;
-        IsInputLock = false;
     }
 }

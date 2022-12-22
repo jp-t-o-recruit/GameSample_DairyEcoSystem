@@ -6,15 +6,6 @@ using Logger = MyLogger.MapBy<TutorialScene>;
 [RequireComponent(typeof(UIDocument))]
 public class TutorialScene : SceneBase, ILayeredSceneLogic
 {
-    //TutorialSceneDomain _domein;
-    public class CreateParameter: IDomainBaseParam
-    {
-        /// <summary>
-        /// チュートリアル完了後に進むシーン
-        /// </summary>
-        public ISceneTransitioner nextSceneTransition = new TitleSceneTransitioner();
-    }
-
     public Button _skipButton;
 
     void Start()
@@ -46,8 +37,6 @@ public class TutorialScene : SceneBase, ILayeredSceneLogic
         _skipButton.pickingMode = PickingMode.Ignore;
         Logger.Debug("スキップボタン押下");
         
-        // TODO
-        //await _domein.ChangeSceneNext();
         _skipButton.pickingMode = PickingMode.Position;
     }
 }

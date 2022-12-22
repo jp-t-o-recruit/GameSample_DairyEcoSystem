@@ -52,9 +52,11 @@ public class HomeUIScene : SceneBase, ILayeredSceneUI
         _toTitleSceneButton = RootElement.Q<Button>("toTitleSceneButton");
 
         //_viewLabel.text = ViewLabel. ;
-        _nextSceneButton.clickable.clicked += OnButtonClicked;
-        _toSaveDataBuilderSceneButton.clickable.clicked += OnToSaveDataBuilderSceneButtonClicked;
-        _toTitleSceneButton.clickable.clicked += OnToTitleSceneButtonClicked;
+        //_nextSceneButton.clickable.clicked += OnButtonClicked;
+        //_toSaveDataBuilderSceneButton.clickable.clicked += OnToSaveDataBuilderSceneButtonClicked;
+        //_toTitleSceneButton.clickable.clicked += OnToTitleSceneButtonClicked;
+
+        Logger.SetEnableLogging(true);
     }
 
     /// <summary>
@@ -68,36 +70,20 @@ public class HomeUIScene : SceneBase, ILayeredSceneUI
 
     private void OnDestroy()
     {
-        _nextSceneButton.clickable.clicked -= OnButtonClicked;
+        //_nextSceneButton.clickable.clicked -= OnButtonClicked;
         Logger.UnloadEnableLogging();
     }
 
     void OnButtonClicked()
     {
+        Logger.Debug($"ホームで次シーンボタンがクリック IsInputLock:{IsInputLock}");
+
         if (IsInputLock) return;
         IsInputLock = true;
 
         _viewLabel.text = "HomeUISceneボタンから設定！";
-        _nextSceneButton.pickingMode = PickingMode.Ignore;
-        Logger.SetEnableLogging(false);
+        //_nextSceneButton.pickingMode = PickingMode.Ignore;
         Logger.Debug("ホームでボタン押下");
-        ////ロード済みのシーンであれば、名前で別シーンを取得できる
-        //Scene scene = SceneManager.GetSceneByName("ManagerScene");
-
-        //PageManager pageManager;
-
-        ////GetRootGameObjectsで、そのシーンのルートGameObjects
-        ////つまり、ヒエラルキーの最上位のオブジェクトが取得できる
-        //foreach (var rootGameObject in scene.GetRootGameObjects())
-        //{
-        //    pageManager = rootGameObject.GetComponent<PageManager>();
-        //    if (pageManager != null)
-        //    {
-        //        TitleScene.Transition transition = new TitleScene.Transition() { Parameter = { viewStr ="HomeUISceneで設定！！！" }};
-        //        await pageManager.Replace(transition);
-        //        break;
-        //    }
-        //}
         IsInputLock = false;
     }
     
