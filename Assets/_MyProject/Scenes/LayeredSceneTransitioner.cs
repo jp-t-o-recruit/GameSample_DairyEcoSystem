@@ -1,9 +1,11 @@
 using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.Triggers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
 using UnityEngine.SceneManagement;
 using VContainer;
 
@@ -79,18 +81,23 @@ public class LayeredSceneTransitioner : ISceneTransitioner
     }
     public void Dispose()
     {
+        _preSetCallback = null;
         Domain = null;
     }
 
+    /// <summary>
+    /// シーンスクリプト読み込みの外だし用クラス
+    /// 必要処理だけに絞って外に出す
+    /// </summary>
     public class OuterLoader
     {
-        public List<Scene> scenes;
-        public MonoBehaviour SceneBase;
-
+        public List<Scene> Scenes;
+        public List<MonoBehaviour> SceneBases;
         LayeredSceneTransitioner _owner;
         public OuterLoader(LayeredSceneTransitioner owner)
         {
-            scenes = new();
+            Scenes = new();
+            SceneBases = new();
             _owner = owner;
         }
 
@@ -98,13 +105,14 @@ public class LayeredSceneTransitioner : ISceneTransitioner
         {
             TType result = default;
             await _owner.LoadScene<TType>(cts, (scene, sceneBase) => {
-                scenes.Add(scene);
+                Scenes.Add(scene);
                 result = sceneBase;
                 if (sceneBase is MonoBehaviour)
                 {
-                    SceneBase = sceneBase as MonoBehaviour;
+                    SceneBases.Add(sceneBase as MonoBehaviour);
                 }
             });
+
             return result;
         }
     }
@@ -114,19 +122,16 @@ public class LayeredSceneTransitioner : ISceneTransitioner
         OuterLoader outer = new (this);
         await _preSetCallback(outer, cts);
 
-        List<Scene> scenes = outer.scenes;
-
-        if (outer.SceneBase == default || outer.SceneBase == null)
+        if (outer.SceneBases.Count == 0)
         {
-            Logger.Warning($"{GetSceneName()}にシーンのコンポーネントがHierarchyに設定されていない。");
+            Logger.Warning($"{GetSceneName()}にシーンのコンポーネントがScene内Hierarchyに設定されていない。");
         }
 
         // プレイヤーループを挟まないとアタッチがされず参照不全になるので待つ
-        await UniTask.WaitForEndOfFrame(outer.SceneBase);
-
+        await UniTask.WhenAll(outer.SceneBases.Select(async v => await UniTask.WaitForEndOfFrame(v, cts.Token)));
         Domain.Initialize(cts);
 
-        return scenes;
+        return outer.Scenes;
     }
 
     public async UniTask LoadScene<TComponent>(CancellationTokenSource cts, Action<Scene, TComponent> callBack)
@@ -147,10 +152,7 @@ public class LayeredSceneTransitioner : ISceneTransitioner
         if (!scene.IsValid())
         {
             Logger.Debug($"LoadSceneByName {sceneName} 読み込み開始");
-            // TODO なんかエラーでる？
-            // InvalidOperationException: This can only be used during play mode, please use EditorSceneManager.OpenScene() instead.
-            //await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive).WithCancellation(cts.Token);
-            await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive).WithCancellation(cts.Token);
             scene = SceneManager.GetSceneByName(sceneName);
             Logger.Debug($"LoadSceneByName {sceneName} 読み込み終了? : " + scene.isLoaded);
         }

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// 音出すテスト
@@ -15,20 +16,22 @@ public class CollisionSound1 : MonoBehaviour
     // AudioClip再生用
     AudioSource audiosource1;
 
+    MyInputActions _MyInputActions;
+
     // Start is called before the first frame update
     void Start()
     {
         // AudioSourceコンポーネント取得
         audiosource1 = GetComponent<AudioSource>();
+
+        _MyInputActions = new MyInputActions();
+        _MyInputActions.Enable();
+        _MyInputActions.Player.Reset.performed += Sound;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            Sound();
-        }
     }
 
     // ぶつかった時に音を鳴らす
@@ -36,7 +39,7 @@ public class CollisionSound1 : MonoBehaviour
     {
     }
 
-    void Sound()
+    void Sound(InputAction.CallbackContext context)
     {
         // AudioSource.PlayClipAtPoint(se, transform.position);
         audiosource1.PlayOneShot(se);

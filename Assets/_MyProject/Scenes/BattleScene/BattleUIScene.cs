@@ -1,4 +1,5 @@
 using UnityEngine.UIElements;
+using My;
 
 public class BattleUIScene : SceneBase, ILayeredSceneUI
 {
@@ -10,6 +11,8 @@ public class BattleUIScene : SceneBase, ILayeredSceneUI
     public Button arenaButton;
     public Button pArenaButton;
 
+    public UnderCommonMenu UnderCommonMenu;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -20,11 +23,18 @@ public class BattleUIScene : SceneBase, ILayeredSceneUI
         clanBattleButton = RootElement.Q<Button>("clanBattleButton");
         arenaButton = RootElement.Q<Button>("arenaButton");
         pArenaButton = RootElement.Q<Button>("nextSceneButton");
+
+        UnderCommonMenu = UnderCommonMenu.Q(RootElement);
     }
 
     // Update is called once per frame
     void Update()
     {
         
+    }
+
+    void OnDestroy()
+    {
+        UnderCommonMenu = null;
     }
 }

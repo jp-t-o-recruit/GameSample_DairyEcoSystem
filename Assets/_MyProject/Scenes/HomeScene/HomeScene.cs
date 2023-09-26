@@ -5,6 +5,8 @@ using LocalLogger = MyLogger.MapBy<HomeScene>;
 
 public class HomeScene : MonoBehaviour, ILayeredSceneLogic
 {
+    public 
+
     // Start is called before the first frame update
     void Start()
     {

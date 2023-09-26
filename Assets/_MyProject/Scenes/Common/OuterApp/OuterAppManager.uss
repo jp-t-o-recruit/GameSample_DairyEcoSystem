@@ -1,0 +1,79 @@
+.prev-button {
+}
+
+.switch-button-wrap {
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.switch-button-wrap .unity-button {
+    margin-left: 4px;
+    margin-right: 4px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    height: 32px;
+    font-size: 16px;
+}
+
+.next-button {
+}
+
+.day-info {
+    height: 64px;
+    font-size: 16px;
+    background-color: rgb(36, 33, 31);
+    color: rgb(255, 255, 255);
+}
+
+.reset-button {
+    margin-right: 16px;
+    background-color: rgb(108, 0, 0);
+}
+
+.outer-app-manager {
+    background-color: rgb(60, 52, 45);
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.outer-app-manager--close {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.outer-app-manager--close .day-info {
+    min-width: 500px;
+    height: 32px;
+}
+
+.outer-app-manager--close .switch-button-wrap {
+    display: none;
+}
+
+.outer-app-manager--close .outer-view-toggle {
+    height: 32px;
+}
+
+.add-days-input.add-days-input--error {
+    color: rgba(0, 0, 0, 255);
+    background-color: rgba(185, 40, 40, 255);
+}

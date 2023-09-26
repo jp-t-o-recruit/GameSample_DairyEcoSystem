@@ -17,4 +17,15 @@ public abstract class SceneBase : MonoBehaviour
     /// ‘½d“ü—Í–h~ƒtƒ‰ƒO
     /// </summary>
     internal protected bool IsInputLock = false;
+
+    /// <summary>
+    /// UIDocument‚Ì—v‘fæ“¾
+    /// </summary>
+    /// <typeparam name="TVisualElement"></typeparam>
+    /// <param name="elementName">—v‘f–¼</param>
+    /// <returns></returns>
+    protected TVisualElement Pull<TVisualElement>(string elementName) where TVisualElement : VisualElement
+    {
+        return RootElement.Q<TVisualElement>(elementName);
+    }
 }

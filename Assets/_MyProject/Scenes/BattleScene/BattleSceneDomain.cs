@@ -12,7 +12,9 @@ public class BattleSceneDomain : LayeredSceneDomainBase<
     BattleFieldScene,
     BattleSceneDomain.DomainParam>
 {
-    
+    private UnderCommonMenu _underCommonMenu;
+
+
     public class DomainParam : IDomainParamBase
     {
 
@@ -27,10 +29,14 @@ public class BattleSceneDomain : LayeredSceneDomainBase<
     {
         base.Initialize(cts);
         _uiLayer.questButton.clickable.clicked += ToHome;
+        _underCommonMenu = _uiLayer.UnderCommonMenu;
+        _underCommonMenu.homeButtonClick += ToHome;
+        _underCommonMenu.AttachClickAction();
     }
 
     public override void Discard(CancellationTokenSource cts)
     {
+        _underCommonMenu = null;
         _uiLayer.questButton.clickable.clicked -= ToHome;
         base.Discard(cts);
     }

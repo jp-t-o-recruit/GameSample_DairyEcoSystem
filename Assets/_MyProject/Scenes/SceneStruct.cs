@@ -242,7 +242,7 @@ public abstract class LayeredSceneDomainBase<TLogic, TUI, TField, TParam> : ILay
     /// <param name="editCallback">遷移処理編集コールバック</param>
     /// <returns></returns>
     public async UniTask SceneTransition(CancellationTokenSource cts = default,
-                                                             Action<ISceneTransitioner> editCallback = default)
+                                         Action<ISceneTransitioner> editCallback = default)
     {
         cts ??= new CancellationTokenSource();
         ISceneTransitioner transitioner = CreateTransitioner(); 
@@ -255,6 +255,11 @@ public abstract class LayeredSceneDomainBase<TLogic, TUI, TField, TParam> : ILay
         await transitioner.Transition(cts);
     }
 
+    /// <summary>
+    /// シーン遷移処理クラスインスタンスの作成
+    /// シーン用オブジェクトにアタッチするスクリプトの読み取りをコールバックで設定
+    /// </summary>
+    /// <returns></returns>
     public virtual ISceneTransitioner CreateTransitioner()
     {
         return new LayeredSceneTransitioner(this, async (outer, cts) => {

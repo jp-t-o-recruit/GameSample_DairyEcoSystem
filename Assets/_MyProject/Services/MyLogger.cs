@@ -86,10 +86,10 @@ public class MyLogger : SingletonBase<MyLogger>
     /// <typeparam name="TType"></typeparam>
     public class MapBy<TType>
     {
-        private static void Log(LogType limitLogType, string str)
+        private static void Log(LogType limitLogType, bool enableLogging, string str)
         {
             if (LogLevelMath.IsBelow(Instance.LoggingLevel, limitLogType) &&
-                GetEnableLogging())
+                enableLogging)
             {
                 Instance.Logger.Log(Instance.LoggingLevel, str);
             }
@@ -101,7 +101,16 @@ public class MyLogger : SingletonBase<MyLogger>
         /// <param name="str">出力したい文字列</param>
         public static void Debug(string str)
         {
-            Log(LogType.Log, str);
+            Log(LogType.Log, GetEnableLogging(), str);
+        }
+        /// <summary>
+        /// ログ出力処理 Info <br/>
+        /// Warningとして絶対出したいわけではないWarning
+        /// </summary>
+        /// <param name="str">出力したい文字列</param>
+        public static void Info(string str)
+        {
+            Log(LogType.Warning, GetEnableLogging(), str);
         }
         /// <summary>
         /// ログ出力処理 Warning
@@ -109,7 +118,15 @@ public class MyLogger : SingletonBase<MyLogger>
         /// <param name="str">出力したい文字列</param>
         public static void Warning(string str)
         {
-            Log(LogType.Warning, str);
+            Log(LogType.Warning, true, str);
+        }
+        /// <summary>
+        /// ログ出力処理 Assert
+        /// </summary>
+        /// <param name="str">出力したい文字列</param>
+        public static void Assert(string str)
+        {
+            Log(LogType.Assert, true, str);
         }
 
         /// <summary>

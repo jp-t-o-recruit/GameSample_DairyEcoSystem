@@ -208,6 +208,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1357491390}
   - component: {fileID: 1357491389}
+  - component: {fileID: 1357491391}
   m_Layer: 0
   m_Name: HomeUIScene
   m_TagString: Untagged
@@ -246,6 +247,19 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1357491391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1357491388}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16334b6c153ccad49b9caa253d964ba3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _uiDocument: {fileID: 1357491389}
 --- !u!1 &2025085084
 GameObject:
   m_ObjectHideFlags: 0
@@ -258,7 +272,6 @@ GameObject:
   - component: {fileID: 2025085088}
   - component: {fileID: 2025085087}
   - component: {fileID: 2025085086}
-  - component: {fileID: 2025085089}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -347,16 +360,3 @@ Canvas:
   m_SortingLayerID: 445506647
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!114 &2025085089
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2025085084}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 16334b6c153ccad49b9caa253d964ba3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _uiDocument: {fileID: 1357491389}

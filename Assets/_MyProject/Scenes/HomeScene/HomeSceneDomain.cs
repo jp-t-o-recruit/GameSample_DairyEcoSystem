@@ -1,5 +1,5 @@
 using System.Threading;
-using VContainer;
+using My;
 
 using Logger = MyLogger.MapBy<HomeSceneDomain>;
 
@@ -12,17 +12,16 @@ public class HomeSceneDomain : LayeredSceneDomainBase<
     HomeFieldScene,
     HomeSceneDomain.DomainParam>
 {
+
+    private UnderCommonMenu _underCommonMenu;
+
     public class DomainParam : IDomainParamBase
     {
         public string ViewLabel = "HomeSceneDomainスクリプトから設定！";
     }
 
-    // IDisposableと引っ掛けて、Client自体がDisposeされたら実行中のリクエストも終了させるようにする
     private CancellationTokenSource _cts;
 
-    [Inject]
-    //public HomeSceneDomain(CancellationTokenSource clientLifetimeTokenSource)
-    //                        DomainParam domainParam)
     public HomeSceneDomain()
     {
         _cts = new();
@@ -39,6 +38,13 @@ public class HomeSceneDomain : LayeredSceneDomainBase<
         // TODO
         //_uiLayer._toSaveDataBuilderSceneButton.clickable.clicked += OnButtonClicked;
         _uiLayer._toTitleSceneButton.clickable.clicked += OnTitleSceneButtonClicked;
+
+        _underCommonMenu = _uiLayer._underCommonMenu;
+        _underCommonMenu.questButtonClick = ToBattleScene;
+        _underCommonMenu.AttachClickAction();
+
+        // TODO
+        //_logicLayer
     }
 
     public override void Suspend(CancellationTokenSource cts)
@@ -55,6 +61,7 @@ public class HomeSceneDomain : LayeredSceneDomainBase<
     {
         Logger.Debug($"Discard {this.GetType()}");
 
+        _underCommonMenu = null;
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;

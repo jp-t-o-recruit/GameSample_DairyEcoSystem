@@ -41,13 +41,11 @@ public class HomeScenario : IScenario, IDisposable
     public async void OnActive()
     {
         Logger.Debug($"アクティブ{this.GetType()}");
+   
         // 通常のホームシーンを実行
-
         var domain = new HomeSceneDomain();
-        Logger.Debug($"TODO非同期で帰ってこない？ {this.GetType()}");
-
         await domain.SceneTransition(_cts, (transitioner) => transitioner.StackType = SceneStackType.PushOrRetry);
-        Logger.Debug($"TODO非同期で帰って来た！ {this.GetType()}");
+
         this.Initialize(domain._uiLayer).Forget();
     }
 

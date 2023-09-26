@@ -1,5 +1,7 @@
-.unity-button {
+.battle-scene .scene-core .unity-button {
     width: 48%;
+    font-size: 48px;
+    white-space: normal;
 }
 
 .unity-group-box {

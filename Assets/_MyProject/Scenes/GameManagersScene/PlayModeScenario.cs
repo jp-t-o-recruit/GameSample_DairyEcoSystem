@@ -36,7 +36,8 @@ public class PlayModeScenario : IScenario
 
         if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.TitleScene, () => new TitleScenario())) { }
         else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.HomeScene, () => new HomeScenario("TODOgame", null, new HomeScenarioState()))) { }
-        else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.BattleScene, () => new DefaultScenario("TODO999"))) { }
+        else if (TryParceSceneToScenario(out scenario, scene.name, SceneEnum.BattleScene, () => new DefaultScenario("TODO_battle"))) { }
+        else { scenario = new DefaultScenario("TODO999111");  }
 
         Logger.SetEnableLogging(true);
         Logger.Debug($"PlayModeで{scenario.GetType()}シナリオを開始");

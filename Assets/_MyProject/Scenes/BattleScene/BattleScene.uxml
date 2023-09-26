@@ -1,25 +1,31 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:Template name="UnderCommonMenu" src="project://database/Assets/_MyProject/Scenes/MenuScene/UnderCommonMenu.uxml?fileID=9197481963319205126&amp;guid=8ff17febfa077354aa477db324a73007&amp;type=3#UnderCommonMenu" />
     <Style src="project://database/Assets/_MyProject/Scenes/BattleScene/BattleScene.uss?fileID=7433441132597879392&amp;guid=2119e23e99414134e9b4e35d74169473&amp;type=3#BattleScene" />
-    <ui:GroupBox style="flex-direction: row; margin-left: 0; margin-right: 0; margin-top: 36px; margin-bottom: 0; padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; height: 80%;">
-        <ui:GroupBox name="GroupBox" style="background-image: url(&apos;project://database/Assets/_MyProject/Scenes/BattleScene/org_%E5%B0%91%E5%B9%B4%E5%86%92%E9%99%BA%E8%80%85.png?fileID=2800000&amp;guid=2d2bfa8a93d5f134c82c314da051577d&amp;type=3#org_少年冒険者&apos;); width: 50%;" />
-        <ui:GroupBox style="width: 50%; flex-wrap: wrap;">
-            <ui:GroupBox style="width: 50%; height: 66%;">
-                <ui:Button text="クエスト" display-tooltip-when-elided="true" name="questButton" style="width: 96%;" />
-            </ui:GroupBox>
-            <ui:GroupBox style="flex-direction: row; flex-wrap: wrap; width: 50%; height: 66%;">
-                <ui:GroupBox style="flex-direction: row; width: 100%; height: 50%;">
-                    <ui:Button text="探索" display-tooltip-when-elided="true" name="searchButton" style="width: 46%;" />
-                    <ui:Button text="ダンジョン" display-tooltip-when-elided="true" name="dungeonButton" style="width: 46%;" />
+    <Style src="project://database/Assets/_MyProject/Scenes/Common/USSThema/_MyProjectUSS.uss?fileID=7433441132597879392&amp;guid=e5d0960b2d7c97a49b882d4e5b030fce&amp;type=3#_MyProjectUSS" />
+    <ui:VisualElement class="battle-scene" style="width: 100%; height: 100%;">
+        <ui:VisualElement style="height: 100px;" />
+        <ui:GroupBox class="scene-core" style="flex-direction: row; margin-left: 0; margin-right: 0; margin-top: 0; margin-bottom: 0; padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; height: 80%;">
+            <ui:GroupBox name="GroupBox" style="background-image: url(&apos;project://database/Assets/_MyProject/Scenes/BattleScene/org_%E5%B0%91%E5%B9%B4%E5%86%92%E9%99%BA%E8%80%85.png?fileID=2800000&amp;guid=2d2bfa8a93d5f134c82c314da051577d&amp;type=3#org_少年冒険者&apos;); width: 50%;" />
+            <ui:GroupBox style="width: 50%; flex-wrap: wrap;">
+                <ui:GroupBox style="width: 50%; height: 66%;">
+                    <ui:Button text="クエスト" display-tooltip-when-elided="true" name="questButton" style="width: 96%;" />
                 </ui:GroupBox>
-                <ui:GroupBox style="flex-direction: row; justify-content: space-between; width: 100%; height: 50%;">
-                    <ui:Button text="調査" display-tooltip-when-elided="true" name="InvestigationButton" style="width: 46%;" />
-                    <ui:Button text="クランバトル" display-tooltip-when-elided="true" name="clanBattleButton" style="width: 46%;" />
+                <ui:GroupBox style="flex-direction: row; flex-wrap: wrap; width: 50%; height: 66%;">
+                    <ui:GroupBox style="flex-direction: row; width: 100%; height: 50%;">
+                        <ui:Button text="探索" display-tooltip-when-elided="true" name="searchButton" style="width: 46%;" />
+                        <ui:Button text="ダンジョン" display-tooltip-when-elided="true" name="dungeonButton" style="width: 46%;" />
+                    </ui:GroupBox>
+                    <ui:GroupBox style="flex-direction: row; justify-content: space-between; width: 100%; height: 50%;">
+                        <ui:Button text="調査" display-tooltip-when-elided="true" name="InvestigationButton" style="width: 46%;" />
+                        <ui:Button text="クランバトル" display-tooltip-when-elided="true" name="clanBattleButton" style="width: 46%;" />
+                    </ui:GroupBox>
                 </ui:GroupBox>
-            </ui:GroupBox>
-            <ui:GroupBox name="GroupBox" style="flex-direction: row; height: 33%; width: 100%;">
-                <ui:Button text="アリーナ" display-tooltip-when-elided="true" name="arenaButton" />
-                <ui:Button text="プリンセス&#10;アリーナ" display-tooltip-when-elided="true" name="pArenaButton" />
+                <ui:GroupBox name="GroupBox" style="flex-direction: row; height: 33%; width: 100%;">
+                    <ui:Button text="アリーナ" display-tooltip-when-elided="true" name="arenaButton" />
+                    <ui:Button text="プリンセス&#10;アリーナ" display-tooltip-when-elided="true" name="pArenaButton" />
+                </ui:GroupBox>
             </ui:GroupBox>
         </ui:GroupBox>
-    </ui:GroupBox>
+        <ui:Instance template="UnderCommonMenu" />
+    </ui:VisualElement>
 </ui:UXML>
